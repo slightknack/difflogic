@@ -1,5 +1,7 @@
 # journal
 
+## 2025-05-23
+
 - got a simple version working
   - converges in 1500 epochs
   - relu activation function
@@ -208,3 +210,18 @@
   - Gosh, convergence so quick
   - 1e-8 after 15000, man relu just cooks
   - why is relu so good?
+- Lessons:
+  - relu cooks
+  - mini gate with weights + bias converges
+  - mini gate can also converge with softmax, albeit slower
+  - mini gate can blow up
+  - constraining or clipping the weights sucks
+- Future research:
+  - can you get full gate working?
+  - can you implement sparse fixed weights? does that work?
+  - can you converge in 1500 steps like og paper?
+    - what learning rate/optimizer do they use?
+  - can you get constrained weights working?
+  - can you save params to disk?
+  - can you write out a discretized pure logic version of the program that runs quick, after training?
+    - maybe like generate a c or zig program that uses SIMD

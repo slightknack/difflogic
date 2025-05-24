@@ -150,7 +150,7 @@ def train_print_loss(key, params, x, y):
     print(f"train_loss: {train_loss:.3g}", end="; ")
     print(f"test_loss: {test_loss:.3g}")
 
-def train(key, params, step_size=0.05, epochs=15000, batch_size=512):
+def train(key, params, step_size=0.1, epochs=15000, batch_size=512):
     import time
     keys = random.split(key, epochs)
     for (i, key_epoch) in enumerate(keys):
