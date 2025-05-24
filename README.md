@@ -137,6 +137,18 @@
     - What isn't implemented:
       - fixed wiring
 - First, I'm going to cleanup and prune everything I don't need
+- now, I'm going to do wires
+  - wrote code to generate matrixes with random wiring from last layer
+  - rewrote everything to take params, wires
+  - now optimizing only params, not optimizing wires
+  - got jit working! very fast now (1-2ms / epoch)
+- okay, this should match the original paper:
+  - same architecture
+    - weight generation is less fancy; does it matter that much?
+  - same training process
+  - same hyperparams
+- however, the output is like borked
+  - I'm going to commit here
 
 ## 2025-05-23
 
