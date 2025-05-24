@@ -7,26 +7,27 @@ from pprint import pprint
 
 HARD = False
 PARAMS = None
+GATES = 16
 
 def gate_all(a, b):
     return jnp.array([
         # jnp.maximum(0., a),
-        # jnp.zeros_like(a),
+        jnp.zeros_like(a),
         a * b,
-        # a - a*b,
-        # a,
-        # b - a*b,
-        # b,
+        a - a*b,
+        a,
+        b - a*b,
+        b,
         a + b - 2.0*a*b,
         a + b - a*b,
-        # 1.0 - (a + b - a*b),
-        # 1.0 - (a + b - 2.0*a*b),
-        # 1.0 - b,
-       	# 1.0 - b + a*b,
-        # 1.0 - a,
-        # 1.0 - a + a*b,
+        1.0 - (a + b - a*b),
+        1.0 - (a + b - 2.0*a*b),
+        1.0 - b,
+       	1.0 - b + a*b,
+        1.0 - a,
+        1.0 - a + a*b,
         1.0 - a*b,
-        # jnp.ones_like(a),
+        jnp.ones_like(a),
     ])
 
 # gate_all(left, right) and w have shape (16, n)
@@ -35,7 +36,7 @@ def gate_all(a, b):
 def gate(left, right, w):
     w_soft = jnp.exp(w) / jnp.sum(jnp.exp(w), axis=0, keepdims=True)
     if HARD:
-        w_soft = jax.nn.one_hot(jnp.argmax(w, axis=0), 4).T
+        w_soft = jax.nn.one_hot(jnp.argmax(w, axis=0), GATES).T
     return jnp.sum(gate_all(left, right) * w_soft, axis=0)
 
 def relu(left, right, w):
@@ -64,14 +65,14 @@ def gate_normalize(w):
 
 # uniform random vectors length 16 whose entries sum to 1
 def rand_gate(_key, n):
-    # return gate_normalize(jnp.tile(jnp.arange(4)[:, None], (1, n)))
-    return gate_normalize(jnp.ones((4, n)))
-    # return gate_normalize(random.uniform(key, (16, n)))
+    # return gate_normalize(jnp.tile(jnp.arange(GATES)[:, None], (1, n)))
+    return gate_normalize(jnp.ones((GATES, n)))
+    # return gate_normalize(random.uniform(key, (GATES, n)))
 
 def rand_layer(key, m, n):
     left_key, right_key, gate_key = random.split(key, 3)
-    left = rand_weight_connect(left_key, m, n)
-    right = rand_weight_connect(right_key, m, n)
+    left = rand_weight_bias(left_key, m, n)
+    right = rand_weight_bias(right_key, m, n)
     gate = rand_gate(gate_key, n)
     output = (*left, *right, gate)
     assert 5, len(output)

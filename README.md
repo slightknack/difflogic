@@ -128,6 +128,16 @@
       - I'll stop before then
         - I'll just use adamw
 - Okay, let's start over
+  - I'm just going to try to reproduce the paper.
+    - What works or is implemented:
+      - the gate
+      - adamw optimizer
+      - data generation
+      - training loop and eval
+    - What isn't implemented:
+      - fixed wiring
+- First, I'm going to cleanup and prune everything I don't need
+  -
 
 ## 2025-05-23
 
