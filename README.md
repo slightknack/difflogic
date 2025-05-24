@@ -209,6 +209,9 @@ layer 6 (16, 1)
     - I learned jax and optax and it's very cool (like a tracing jit compiler! and autodiff! awesome!!)
 - I think I'm going to try to basically copy the reference impl.
   - Maybe there's a detail I overlooked that will make it click.
+- Back! I copied over the whole implementation (`repro.py`), trimming out the parts I didn't need.
+  - It runs and converges. Nice!
+  - Now I am going to strip it down until I understand every line of code
 
 ## 2025-05-23
 

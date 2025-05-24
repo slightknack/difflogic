@@ -173,7 +173,7 @@ if __name__ == "__main__":
     key = random.PRNGKey(379009)
     param_key, train_key = random.split(key)
 
-    layer_sizes = [9, 64, 32, 16, 8, 4, 2, 1]
+    layer_sizes = [9, 8, 4, 2, 1]
     params, wires = rand_network(param_key, layer_sizes)
 
     params_trained = train_adamw(train_key, params, wires)
