@@ -48,7 +48,10 @@ def gate_normalize(w):
 # uniform random vectors length 16 whose entries sum to 1
 def rand_gate(key, n):
     # return gate_normalize(random.uniform(key, (GATES, n)))
-    return jnp.full((GATES, n), 1. / GATES)
+    result = jnp.zeros((GATES, n))
+    result = result.at[3, :].set(10.0)
+    return result
+    # return jnp.full((GATES, n), 1. / GATES)
 
 def rand_wire_pairs(key, m, n):
     keys = random.split(key, n)
@@ -131,7 +134,11 @@ def conway_sample_batch(key, size):
 def train_adamw(key, params, wires, epochs=200000, batch_size=512):
     import time
     keys = random.split(key, epochs)
-    opt = optax.adamw(learning_rate=0.05, b1=0.9, b2=0.99, weight_decay=1e-2)
+    opt = optax.chain(
+        optax.clip(100.0),
+        optax.adamw(learning_rate=0.05, b1=0.9, b2=0.99, weight_decay=1e-2)
+
+    )
     opt_state = opt.init(params)
     for (i, key_epoch) in enumerate(keys):
         key_train, key_accuracy = random.split(key_epoch)
@@ -154,7 +161,8 @@ def debug_loss(key, params, wires, x, y):
     test_loss = loss(params, wires, x_test, y_test, False)
     test_loss_hard = loss(params, wires, x_test, y_test, True)
     preds = predict_batch(params, wires, x_test, False)
-    print("[", *[f"{x:.3g}" for x in preds[0:5].flatten().tolist()], "]", y_test[0:5].flatten())
+    preds_hard = predict_batch(params, wires, x_test, True)
+    print("[", *[f"{x:.3g}" for x in preds[0:5].flatten().tolist()], "]", preds_hard[0:5].flatten(), y_test[0:5].flatten())
     print(f"train_loss: {train_loss:.3g}", end="; ")
     print(f"test_loss: {test_loss:.3g}", end="; ")
     print(f"test_loss_hard: {test_loss_hard:.3g}")
@@ -173,7 +181,7 @@ if __name__ == "__main__":
     key = random.PRNGKey(379009)
     param_key, train_key = random.split(key)
 
-    layer_sizes = [9, 8, 4, 2, 1]
+    layer_sizes = [9, *([128] * 17), 64, 32, 16, 8, 4, 2, 1]
     params, wires = rand_network(param_key, layer_sizes)
 
     params_trained = train_adamw(train_key, params, wires)

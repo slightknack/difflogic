@@ -431,6 +431,8 @@ def init_state(hyperparams, opt, seed):
     key = jax.random.PRNGKey(seed)
     key, subkey = jax.random.split(key, 2)
     params, wires = init_diff_logic_ca(hyperparams, subkey)
+    for p in params['update']:
+        print(p.shape)
     opt_state = opt.init(params)
     return TrainState(params, opt_state, key), wires
 
@@ -445,9 +447,6 @@ def loss_f(params, wires, train_x, train_y, periodic, num_steps, async_training,
 
 val_and_grad = jax.value_and_grad(loss_f, argnums=0, has_aux=True)
 
-# Helper function that can be used for clipping parameters.
-upd_f = lambda p: p
-
 @functools.partial(jax.jit, static_argnums=(4, 5, 6))
 def train_step(
     train_state, train_x, train_y, wires, periodic, num_steps, async_training
@@ -459,7 +458,6 @@ def train_step(
     )
     dx, opt_state = opt.update(dx, opt_state, params)
     new_params = optax.apply_updates(params, dx)
-    new_params = upd_f(new_params)
     return TrainState(new_params, opt_state, key), loss, hard
 
 train_state, wires = init_state(hyperparams, opt, hyperparams['seed'])

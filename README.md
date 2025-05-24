@@ -11,6 +11,13 @@ Using JAX, train a network of logic gates to learn the 3x3 kernel function for C
 - [flax linen nn docs](https://flax.readthedocs.io/en/v0.5.3/overview.html)
 - [optax optimizer docs](https://optax.readthedocs.io/en/latest/index.html)
 
+# dependencies
+
+- jax
+- flax
+- optax
+- einops
+
 # journal
 
 ## 2025-05-24
@@ -212,6 +219,48 @@ layer 6 (16, 1)
 - Back! I copied over the whole implementation (`repro.py`), trimming out the parts I didn't need.
   - It runs and converges. Nice!
   - Now I am going to strip it down until I understand every line of code
+- Wow they use a super weird initialization strategy:
+  - all gates start with everything zero
+  - except for the entry at index 3
+    - which corresponds to the "a passthrough"
+  - I guess the weights get through the network more quickly?
+- I tried training a \[9, 64, 32, 16, 8, 4, 2, 1\] model on this, and it went down to 0.08 after 9k iters.
+  - It doesn't go any lower than that, though... even after 35k iters
+- Well, that's one thing. Let's see what else comes up.
+- WOW! they're using like a massive network
+  - it's \[128 repeat 17, 64, 32, 16, 8, 4, 2, 1\]
+  - I haven't tried anything this big -- should I?
+- Let me try a big boy network (same size as above):
+  - 10k epochs:
+    - epoch 1000, loss 0.0578, hard 0.145
+    - epoch 2000, loss 0.0145, hard 0.0273
+    - epoch 3000, loss 0.00585, hard 0.0312
+    - epoch 4000, loss 0.00248, hard 0.0117
+    - epoch 5000, loss 0.00311, hard 0.0117
+    - epoch 10000, loss 0.00247, hard 0.0176
+  - I was getting like 25ms / epoch
+  - okay, so that converged pretty well after like 3000, which matches repro.
+    - turns out my network was too small and initialized the wrong way, sigh.
+- I'm also going to try to add clipping to the optimizer:
+  - So added clip at +/- 100, as the paper does
+  - I wanted to see if hard loss ever hit zero:
+    - epoch 3000, loss 0.00342, hard 0.00781
+    - doesn't go any lower than that
+  - after 3k epochs, it's apparent that the model converges faster with clipping
+- So with those two changes we're getting pretty close to the repro model.
+  - Probably, if I add better wiring, I'll be able to completely close the performance gap.
+- So what was wrong:
+  - The model training code was good, as was the gate implementation
+  - The model was the wrong size (way too small)
+  - The model was initialized the wrong way (randomly, instead of with permanent passthrough)
+  - The model did not have clipping in the optimizer
+    - Which seems like a rather arbitrary hacky hyperparameter choice
+      - hyperparameters suck! I hate that I was pulling my hair out over why I wasn't getting the same results when all that was different was the hyperparameters at play
+        - I wonder how many research breakthroughs are possible but just sitting in hyperparameters beyond reach
+          - Can we train models that go beyond [fer](https://arxiv.org/abs/2505.11581)?
+- I might revisit this, but I'm satisfied in that I trained a model that got within spitting distance of the official model, and all that was wrong from my implementation from just reading the paper was the way the models were initialized and the size of the models.
+- I want to just, as one last hurrah, print the gates and connections in a human/machine readable format so that I can write a say a C program that simulates conway's game of life.
+- I will return to this after dinner, maybe
 
 ## 2025-05-23
 
