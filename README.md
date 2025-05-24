@@ -1,3 +1,7 @@
+# goal
+
+Using JAX, train a network of logic gates to learn the 3x3 kernel function for Conway's Game of Life.
+
 # resources
 
 - [original paper/blog](https://google-research.github.io/self-organising-systems/difflogic-ca)
