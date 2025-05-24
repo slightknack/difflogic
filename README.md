@@ -1,4 +1,105 @@
+# resources
+
+- [original paper/blog](https://google-research.github.io/self-organising-systems/difflogic-ca)
+- [training nn in jax](https://docs.jax.dev/en/latest/notebooks/neural_network_with_tfds_data.html)
+- [google colab](https://colab.research.google.com/github/google-research/self-organising-systems/blob/master/notebooks/diffLogic_CA.ipynb)
+- [conway gol shader](https://blog.tonari.no/shadergarden)
+- [flax linen nn docs](https://flax.readthedocs.io/en/v0.5.3/overview.html)
+- [optax optimizer docs](https://optax.readthedocs.io/en/latest/index.html)
+
 # journal
+
+## 2025-05-24
+
+- some things to try:
+  - use a real optimizer like adamw via optax
+  - implement sparse static weights
+  - implement "generalized" gates
+    - instead of having a gate with 16 relaxations,
+    - we have one gate with parameters
+    - idea is to find a better basis that spans the same function space
+- where the model is at:
+  - network layout [9, 48, 48, 1]
+  - normalized weights and relu
+  - batch size 20
+  - step size 0.1
+  - converges, ~2500 epochs, loss < 1e-7
+  - ~3ms / epoch
+- if I try the full soft gate, everything else the same:
+  - no dice, 15000 epochs, loss is ~.18-.29
+  - ~2ms / epoch
+- if I try the mini soft gate, AND XOR OR NAND:
+  - blows up, ~5100 epochs, loss is 0.0611 before
+  - ~1-2ms / epoch
+- using a real optimizer
+  - adamw via optax
+    - that wasn't too hard to implement
+    - I had to disable jit though, getting an error,
+      - I should look into that so I can reenable jit
+  - using hyperparams:
+    - learning rate: 0.05
+    - b1, b2: 0.9, 0.99
+    - weight decay: 1e-2
+  - training with soft mini gate, seems to be having a hard time converging, loss goes up crazy then comes back down
+    - 18ms / epoch
+    - maybe my learning rate is too high?
+    - or batch size is too small?
+    - it got down to 0.06 at around 11000
+    - so obviously it's learning, it's just hard
+  - I'm going to try again, with batch size: 512:
+    - this seems to be converging
+      - scratch that, "blowing up less"
+    - epoch 5000, loss 0.0695
+      - but it's going up and down
+    - epoch 7000, loss 0.312
+      - case in point
+    - no dice, epoch 10000, loss 0.112
+      - oscillating between ~0.05 and ~0.15
+  - And another experiment, with:
+    - batch size: 20
+      - back to the old baseline, want to see just learning rate
+    - learning rate: 0.01
+    - it got down to 0.012 then blew up to 0.51
+      - I wonder if the learning rate is too high?
+    - new min, epoch ~7000, loss is 0.0038
+    - epoch 14700, loss ~0.001
+      - certainly is converging better
+  - let's try learning rate: 0.002:
+    - epoch ~5000, loss 0.0594
+    - epoch 15000, loss 0.02
+      - hanging around 0.01, 0.02
+- the paper cites "excessive hyperparameter tuning" and I can see what they mean
+  - this seems like such an unstable system to optimize
+    - plus I have multiple weight matrices that flow into this crazy non-linear gate
+      - relu is like, basically linear except for at one point, by comparison
+  - fixing the weights would def make this network more stable
+- First, I want to see how well this generalizes
+  - so I'm going to add a "hard" inference mode which selects just one gate instead of softmax
+    - and use that for testing
+  - I accidentally trained with the hard inference mode and it's ... still converging?
+    - it got down to loss < 0.01, the heck
+      - < 0.001 !?
+    - "neural networks are magic"
+    - yeah, this is probably converging better than the soft version. weird.
+      - probably because it's able to propagate the weights better? I wonder what the weight matrices look like?
+- I'm going to implement code that dumps the weights
+  - done! cool
+  - OH NO!! It turns out that our uh gate is not training hahahahahah kill me
+    - so all the results I've seen so far are essentially with a fixed gate that is essentially the average of AND XOR OR NAND
+      - wait let me graph that
+        - it basically looks like a sad little tilted square pringle in the range x,y : \[0, 1\]
+      - crazy that the network learned at all
+        - the other weights look reasonable though
+        - and that explains why it didn't learn when I e.g. constrained the weights of the network!
+        - and when I try all 16 gates, I'm pretty sure that each gate has an inverse, so it all cancels out, creating essentially a constant activation function
+          - this is horrible! of course the network never learned
+  - this failure actually makes me very happy!
+    - it means that the model has the potential to, y'know, *actually learn*
+      - I've been essentially testing how bad an activation function I can make while still getting a result, crazy
+        - Turns out the answer is pretty bad
+          - neural networks are magic
+- Next up: making the gate actually trainable
+
 
 ## 2025-05-23
 
@@ -225,3 +326,4 @@
   - can you save params to disk?
   - can you write out a discretized pure logic version of the program that runs quick, after training?
     - maybe like generate a c or zig program that uses SIMD
+  - can you implement some way to visualize the network and its weights?
