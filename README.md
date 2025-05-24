@@ -261,6 +261,14 @@ layer 6 (16, 1)
 - I might revisit this, but I'm satisfied in that I trained a model that got within spitting distance of the official model, and all that was wrong from my implementation from just reading the paper was the way the models were initialized and the size of the models.
 - I want to just, as one last hurrah, print the gates and connections in a human/machine readable format so that I can write a say a C program that simulates conway's game of life.
 - I will return to this after dinner, maybe
+- Future research:
+  - Can you get hard loss to zero?
+    - Do you need to change the way the network is wired?
+  - Can you use soft dot over weights to learn wiring?
+    - Do you need to initialize the weights with a "suggested wiring," the same way we passthrough the gates?
+  - Can you make an animation of the learned game of life over time as the network learns?
+    - Maybe a playable demo accessible form the web?
+  - Can you write up this experience, and point out the hard parts / surprises?
 
 ## 2025-05-23
 
