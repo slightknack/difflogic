@@ -1,0 +1,142 @@
+# journal
+
+- got a simple version working
+  - converges in 1500 epochs
+  - relu activation function
+  - normally distributed weights
+  - L2 loss
+  - network is \[9, 512, 512, 1\]
+  - converges < 1e-6 in like 1500 epochs batch 128 (wait, 1024?)
+- tried switching out for trainable gate activation function
+  - very very slow to train -- relu is *fast*
+  - after 1500 iters, loss hovers around 0.2, no dice
+- tried fixed sparse weights, like original paper
+  - e.g. generate identity matrix, shuffle it
+  - loss hovers around 0.29, no dice
+- what do predictions look like for relu weights, etc?
+  - switching back to trainable layers and relu
+  - after 1500, pretty close match between pred and actual
+  - since we only use relu, clearly capped to 0 at bottom end
+  - and then like 0.99 to 1.01 on top end
+  - so certainly doing the right thing
+- what about for relu but gate activation?
+  - switching from relu to gate activation
+  - where each of the gate functions is just relu on the first argument to the gate
+  - so in theory this should converge
+  - and indeed it does converge! loss < 1e-6 after just ~600 epochs
+  - so the gate selection mechanism is fine
+  - maybe the continuous relaxations of the logic gates we are using just aren't that non-linear?
+- okay, what about gate activation, but only one is relu?
+  - in theory, the network should be able to select for relu
+  - in which case this should do no worse than the relu case
+  - replaced first option, jnp.zeros_like(a) with relu
+  - after 300 epochs, loss is 0.2
+  - seems to be predicting ~0.3 regardless of input
+  - after 1200 epochs, loss is still 0.2
+  - seems to be predicting 0.3 regardless of input
+- what are my options?
+  - well, it looks like most of the gate activations aren't that non-linear
+  - I could try using a different learning rate
+  - I could try using a different loss function
+  - I could try using a different optimizer
+    - right now I'm just using batched sgd
+    - but no momentum, etc.
+  - I could try a simpler case
+    - like gate with four function, one of them relu
+  - I could try training for a lot longer
+    - not likely to do anything if we're seeing no convergence
+  - I could try speeding up the gate
+    - this wouldn't really do anything
+    - BUT it would make experimentation quicker
+- let's see if the learning rate does anything
+  - learning rate was at 0.1, I moved it to 0.01
+    - after 500 epochs, loss 0.2
+    - indiscriminately predicting 0.29 regardless of input
+  - yeah, learning rate probably isn't the issue
+    - if it were, we would expect e.g. loss to blow up or it to not be able to converge past a point
+- let's try a lesser gate. how about 4 with one of them relu?
+  - training with RELU, AND, XOR, OR
+  - step size is 0.01
+    - not converging after 1500 epochs (loss 0.2)
+  - step size 0.1
+    - wait, no, this actually started to converge
+      - converged to loss 0.09 after 1500 epochs
+  - since a bigger step size worked, we're able to traverse more of parameter space in the same number of epochs
+  - likely had we let step size 0.01 run for 10x as long it would have started to converge to? let's try that, just to see
+    - 15000 epochs at step size 0.01
+      - after 500, loss is 0.2
+      - after 1000, loss is 0.2 still
+      - after 3000, loss is 0.17 (!)
+      - after 5000, loss is 0.15-6 (nice)
+      - after 15000, loss is 0.074
+    - nice! so I learned:
+      - if learning rate is stable over the loss landscape,
+      - dividing rate by 10 will require 10x more time to train
+      - but will train a little better, likely due to taking a shorter path over the loss landscape
+- okay, so a few things could be true:
+  - the paper works.
+  - if so, if we train for a very very long time, it will converge
+  - maybe regularization is very very important
+  - I should re-read the paper to make sure I'm not missing anything
+- I'm going to try to find info about network size, batch size, epochs, etc.
+  - okay, so it looks like their network is ~48 gates wide by 20 gates deep
+  - and yeah, they're using sparse connections, as I do
+  - I could def speed up my impl if I used optimized sparse connections, but I really want to train with full weights and a sparsity constraint
+  - from the graph, the conway's network with the above size dims looks to converge around 750 steps, and fully converge (e.g. find exact solution) by 1500 steps.
+- I'm going to try some things:
+  - Initialize gate vector to constant value 1/gates
+  - I just tried it with network shape \[9, 48, 48, 1\]
+    - batch size now 512
+    - Converges with pure relu after 2500
+    - Trying with mini gate (4 incl relu), converges after 2500 to < 0.0315, not bad
+    - Trying with mini gate (AND, XOR, OR, NAND), NO relu:
+      - after 2500: loss < 0.147
+      - after 5000: loss < 0.08
+      - after 9948: loss < 0.0139
+      - then we get train_loss: inf, test_loss inf
+        - and the network fails to converge
+        - why the heck did that happen?
+        - it was training so well ...
+        - it looks like the last weight update resulted in very large outputs? compare:
+          - Epoch (9947/15000) in 0.00447s
+            - \[ 1.09918     0.03538388 -0.12122762 -0.16839814 -0.17385668\]
+            - \[1. 0. 0. 0. 0.\]
+          - Epoch (9948/15000) in 0.00408s;
+            - \[-1.6563390e+30 -9.1450563e+27 -2.0778076e+33 -3.6336894e+32 -3.8909304e+31\]
+            - \[0. 0. 1. 1. 0.\]
+        - I don't have enough info to figure out why this happened but if numerical stability is a problem in the future I can fix it.
+      - well, the good news is that the mini gate was working, but then blew up
+        - seems to take like 5-10x as long as mini-gate incl relu
+        - but good to know that whatever we're doing is just going to need a bit of training time to work
+      - looking for potential zero-divs in code
+        - gate_normalize has only div, used only to set the initial gate weights
+    - Trying with full gate, for at least 10000 steps:
+      - Unrelated, but I think a bit source of slowdown is displaying the accuracy stats, because they are not jit'd -- maybe I only show every say 100 epochs?
+      - after 1500 epochs, loss is ~0.2
+      - after 5000 epochs, loss is ~0.2 still
+      - after 10000 epochs, loss is ~0.2 still
+      - after 1500 epochs, loss is ~0.2 still UGH
+      - so, full gate has a lot of trouble converging
+        - maybe I need to add a regularizer term to force some gates? that might make the network have to pick something instead of just guessing an average?
+        - maybe I should try to use as few gates as possible? e.g. just use AND, OR, maybe XOR, call it?
+- I will implement a regularizer for the gates and weights now
+  - first, I want to try 2-gate, just AND and OR:
+    - 3000 epochs, loss < 0.15
+    - 7000 epochs, loss < 0.08
+    - 11577 loss < 0.0431
+    - NOOOOO blow up at 11578
+      - this was weird, the loss got big, then inf, then nan, over 3 epochs ... maybe learning rate is too high? or there are very big params in the network?
+  - I will stick with the 4-gate, no relu version, because that converges the quickest so far
+  - goal is to measure whether convergence happens more quickly
+  - first, I try normalizing the gate weights to sum to 1:
+    - I don't want to run this until full convergence, so
+    - WAIT! it blew up. And this time only after 2590 epochs. never got lower than 0.17
+      - I wonder if we are getting big weight terms because of a * b in e.g. AND and OR etc.?
+      - then constraining the magnitude of the gate weights makes this blow up?
+      - What if I also constrain the magnitude of the weight matrix?
+  - I'm adjusting the step size to 0.05, wondering if that will help with the blow-ups
+  - I'm trying to decide, should I constrain the weights during the update step, or as a penalty added to the loss term, like standard L1?
+  - I tried clipping the weights between +/- 1:
+    - loss gets down to 0.164 at epoch ~5000
+    - then blows up to inf
+  - so evidently these hard constraints mess with numeric stability

@@ -5,32 +5,42 @@ from pprint import pprint
 
 def gate_all(a, b):
     return jnp.array([
-        jnp.zeros_like(a),
+        # jnp.maximum(0., a),
+        # jnp.zeros_like(a),
         a * b,
-        a - a*b,
-        a,
-        b - a*b,
-        b,
+        # a - a*b,
+        # a,
+        # b - a*b,
+        # b,
         a + b - 2.0*a*b,
         a + b - a*b,
-        1.0 - (a + b - a*b),
-        1.0 - (a + b - 2.0*a*b),
-        1.0 - b,
-       	1.0 - b + a*b,
-        1.0 - a,
-        1.0 - a + a*b,
+        # 1.0 - (a + b - a*b),
+        # 1.0 - (a + b - 2.0*a*b),
+        # 1.0 - b,
+       	# 1.0 - b + a*b,
+        # 1.0 - a,
+        # 1.0 - a + a*b,
         1.0 - a*b,
-        jnp.ones_like(a),
+        # jnp.ones_like(a),
     ])
 
 # gate_all(left, right) and w have shape (16, n)
 # where n is the dimension of left/right
 # This is a batched dot product along the second axis (axis 1)
 def gate(left, right, w):
-    return vmap(jnp.dot, in_axes=1)(gate_all(left, right), w)
+    return jnp.sum(gate_all(left, right) * w, axis=0)
 
 def relu(left, right, w):
     return jnp.maximum(0., left)
+
+def rand_weight_connect(key, m, n, scale=1e-2):
+    w_key, b_key = random.split(key)
+    base_matrix = jnp.eye(jnp.maximum(n, m))[:n, :m]
+    perm = random.permutation(w_key, m)
+    w = base_matrix[:, perm]
+    pprint(w)
+    b = jnp.zeros(n,)
+    return (w, b)
 
 # m rows by n columns
 # n is input dim, m is output dim
@@ -45,8 +55,9 @@ def gate_normalize(w):
     return w / sum_col[None,:]
 
 # uniform random vectors length 16 whose entries sum to 1
-def rand_gate(key, n):
-    return gate_normalize(random.uniform(key, (16, n)))
+def rand_gate(_key, n):
+    return gate_normalize(jnp.ones((4, n)))
+    # return gate_normalize(random.uniform(key, (16, n)))
 
 def rand_layer(key, m, n):
     left_key, right_key, gate_key = random.split(key, 3)
@@ -67,7 +78,7 @@ def predict(params, inp):
     for (lw, lb, rw, rb, g) in params:
         outs_l = jnp.dot(lw, active) + lb
         outs_r = jnp.dot(rw, active) + rb
-        active = relu(outs_l, outs_r, g)
+        active = gate(outs_l, outs_r, g)
     return active
 
 predict_batch = vmap(predict, in_axes=(None, 0))
@@ -77,15 +88,18 @@ def loss(params, inp, out):
     preds = predict_batch(params, inp)
     return jnp.mean(jnp.square(preds - out))
 
+def weight_normalize(weights):
+    return jnp.clip(weights, -1.0, 1.0)
+
 @jit
 def update(params, x, y, step_size):
     grads = grad(loss)(params, x, y)
     return [(
-        lw - step_size * dlw,
-        lb - step_size * dlb,
-        rw - step_size * drw,
-        rb - step_size * drb,
-        g - step_size * dg,
+        weight_normalize(lw - step_size * dlw),
+        weight_normalize(lb - step_size * dlb),
+        weight_normalize(rw - step_size * drw),
+        weight_normalize(rb - step_size * drb),
+        gate_normalize(g - step_size * dg),
     ) for
         (lw, lb, rw, rb, g),
         (dlw, dlb, drw, drb, dg)
@@ -126,10 +140,12 @@ def train_print_loss(key, params, x, y):
     y_test = conway_kernel_batch(x_test)
     train_loss = loss(params, x, y)
     test_loss = loss(params, x_test, y_test)
+    preds = predict_batch(params, x_test)
+    print(preds[0:5].flatten(), y_test[0:5].flatten())
     print(f"train_loss: {train_loss:.3g}", end="; ")
     print(f"test_loss: {test_loss:.3g}")
 
-def train(key, params, step_size=0.01, epochs=10000, batch_size=1024):
+def train(key, params, step_size=0.05, epochs=15000, batch_size=512):
     import time
     keys = random.split(key, epochs)
     for (i, key_epoch) in enumerate(keys):
@@ -145,10 +161,9 @@ def train(key, params, step_size=0.01, epochs=10000, batch_size=1024):
 
 if __name__ == "__main__":
     key = random.PRNGKey(379009)
-    rand_key, train_key = random.split(key)
+    param_key, train_key = random.split(key)
 
-    layer_sizes = [9, 512, 512, 1]
-    params = rand_network(key, layer_sizes)
-    # pprint(params)
+    layer_sizes = [9, *([48] * 2), 1]
+    params = rand_network(param_key, layer_sizes)
 
-    train(key, params)
+    train(train_key, params)
