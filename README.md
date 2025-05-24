@@ -149,6 +149,47 @@
   - same hyperparams
 - however, the output is like borked
   - I'm going to commit here
+- I implemented like a gate weight visualization
+  - It's pretty cool to see how the weights propagate backwards
+    - A lot of gates, like, aren't used though :shock:
+  - So it doesn't converge, even after 200k epochs
+  - I'm going to try to improve the wiring
+- I implemented tree wiring and trained for 200k epochs:
+  - epoch ~87000, loss 0.121, hard 0.184
+  - epoch 200000, loss 0.124, hard 0.195
+  - It started to converge once the weights reached the back of the network (about 80k epochs in)!
+    - but didn't get any better after that
+  - Why does this take my network hundreds of thousands of epochs, whereas the paper, with similar hyperparams, etc. takes say < 3000
+    - I need to figure this out!
+- Oh anyway, I just think this is a cool visualization:
+
+```
+# gate order
+FALSE | AND  | A&!B  | A    | B&!A  | B    | XOR  | OR
+NOR   | XNOR | NOT B | A/!B | NOT A | B/!A | NAND | TRUE
+
+[...]
+layer 3 (16, 8)
+F  & &! A !& B  X  / ...
+▄ ▄ ▄ ▄ ▄ ▄ ▄ ▁ ▄ ▄ ▄ ▁ ▄ ▁ ▁ ▁
+▄ ▄ ▄ ▄ ▄ ▄ ▄ ▁ ▄ ▄ ▄ ▁ ▄ ▁ ▁ ▁
+▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ █
+▁ ▁ ▁ ▄ ▁ ▄ ▄ ▄ ▁ ▄ ▄ ▄ ▄ ▄ ▄ ▄
+▁ ▁ ▁ ▁ ▁ ▁ ▄ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁
+▄ ▄ ▄ ▁ ▄ ▁ ▁ ▁ ▄ ▁ ▁ ▁ ▁ ▁ ▁ ▁
+▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ █
+▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ █ ▁ ▁ ▁ ▁ ▁ ▁ ▁
+layer  4 (16, 4)
+▁ ▁ ▁ ▁ ▁ █ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁
+▄ ▄ ▄ ▁ ▄ ▁ ▁ ▁ ▄ ▁ ▁ ▁ ▁ ▁ ▁ ▁
+▁ ▁ ▁ ▁ ▁ ▁ ▁ █ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▄
+▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ █ ▁ ▁ ▁ ▁ ▁
+layer 5 (16, 2)
+▁ ▁ ▁ ▁ ▄ ▁ █ ▁ ▁ ▁ ▁ ▁ ▄ ▁ ▄ ▁
+▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ █ ▁ ▁ ▁ ▁ ▁
+layer 6 (16, 1)
+▁ ▁ █ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁
+```
 
 ## 2025-05-23
 

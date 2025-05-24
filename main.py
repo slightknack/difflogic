@@ -47,8 +47,8 @@ def gate_normalize(w):
 
 # uniform random vectors length 16 whose entries sum to 1
 def rand_gate(key, n):
-    return gate_normalize(random.uniform(key, (GATES, n)))
-    # return jnp.full((GATES, n), 1. / GATES)
+    # return gate_normalize(random.uniform(key, (GATES, n)))
+    return jnp.full((GATES, n), 1. / GATES)
 
 def rand_wire_pairs(key, m, n):
     keys = random.split(key, n)
@@ -57,9 +57,19 @@ def rand_wire_pairs(key, m, n):
     right = jax.nn.one_hot(pairs_indices[1, :], num_classes=m)
     return left, right
 
+def tree_wire_pairs(m, n):
+    print("tree wire")
+    assert m, 2*n
+    pairs_indices = jnp.arange(m).reshape((2, n))
+    left = jax.nn.one_hot(pairs_indices[0, :], num_classes=m)
+    right = jax.nn.one_hot(pairs_indices[1, :], num_classes=m)
+    return left, right
+
 def rand_layer(key, m, n):
     left_key, right_key, gate_key = random.split(key, 3)
     left, right = rand_wire_pairs(left_key, m, n)
+    if m == 2*n:
+        left, right = tree_wire_pairs(m, n)
     param = rand_gate(gate_key, n)
     wires = (left, right)
     return param, wires
@@ -118,7 +128,7 @@ def conway_sample_batch(key, size):
     keys = random.split(key, size)
     return vmap(conway_sample)(keys)
 
-def train_adamw(key, params, wires, epochs=30000, batch_size=20):
+def train_adamw(key, params, wires, epochs=200000, batch_size=512):
     import time
     keys = random.split(key, epochs)
     opt = optax.adamw(learning_rate=0.05, b1=0.9, b2=0.99, weight_decay=1e-2)
@@ -134,6 +144,7 @@ def train_adamw(key, params, wires, epochs=30000, batch_size=20):
 
         print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g}s", end="   \r")
         if i % 1000 == 0: debug_loss(key_accuracy, params, wires, x, y)
+        if i % 10000 == 0: debug_params(params)
     return params
 
 def debug_loss(key, params, wires, x, y):
@@ -151,13 +162,18 @@ def debug_loss(key, params, wires, x, y):
 def debug_params(params):
     for i, param in enumerate(params):
         print("LAYER", i, param.shape)
-        print(param)
+        for gate in param.T.tolist():
+            for logic in gate:
+                if logic > 1: print("█ ", end="")
+                elif logic < 0: print("▁ ", end="")
+                else: print("▄ ", end="")
+            print()
 
 if __name__ == "__main__":
     key = random.PRNGKey(379009)
     param_key, train_key = random.split(key)
 
-    layer_sizes = [9, 8, 4, 2, 1]
+    layer_sizes = [9, 64, 32, 16, 8, 4, 2, 1]
     params, wires = rand_network(param_key, layer_sizes)
 
     params_trained = train_adamw(train_key, params, wires)
