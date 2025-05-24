@@ -6,6 +6,7 @@ import optax
 from pprint import pprint
 
 HARD = False
+PARAMS = None
 
 def gate_all(a, b):
     return jnp.array([
@@ -33,8 +34,8 @@ def gate_all(a, b):
 # This is a batched dot product along the second axis (axis 1)
 def gate(left, right, w):
     w_soft = jnp.exp(w) / jnp.sum(jnp.exp(w), axis=0, keepdims=True)
-    # if HARD:
-    #     w_soft = jax.nn.one_hot(jnp.argmax(w, axis=0), 4).T
+    if HARD:
+        w_soft = jax.nn.one_hot(jnp.argmax(w, axis=0), 4).T
     return jnp.sum(gate_all(left, right) * w_soft, axis=0)
 
 def relu(left, right, w):
@@ -63,13 +64,14 @@ def gate_normalize(w):
 
 # uniform random vectors length 16 whose entries sum to 1
 def rand_gate(_key, n):
+    # return gate_normalize(jnp.tile(jnp.arange(4)[:, None], (1, n)))
     return gate_normalize(jnp.ones((4, n)))
     # return gate_normalize(random.uniform(key, (16, n)))
 
 def rand_layer(key, m, n):
     left_key, right_key, gate_key = random.split(key, 3)
-    left = rand_weight_bias(left_key, m, n)
-    right = rand_weight_bias(right_key, m, n)
+    left = rand_weight_connect(left_key, m, n)
+    right = rand_weight_connect(right_key, m, n)
     gate = rand_gate(gate_key, n)
     output = (*left, *right, gate)
     assert 5, len(output)
@@ -171,6 +173,7 @@ def train_print_loss(key, params, x, y):
 
 def train_sgd(key, params, step_size=0.1, epochs=15000, batch_size=20):
     import time
+    global PARAMS
     keys = random.split(key, epochs)
     for (i, key_epoch) in enumerate(keys):
         time_start = time.time()
@@ -181,13 +184,15 @@ def train_sgd(key, params, step_size=0.1, epochs=15000, batch_size=20):
         time_epoch = time.time() - time_start
         print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g}s", end="   \r")
         if i % 100 == 0:
+            PARAMS = params
             train_print_loss(key_accuracy, params, x, y)
     return params
 
 def train_adamw(key, params, epochs=15000, batch_size=20):
     import time
+    global PARAMS
     keys = random.split(key, epochs)
-    opt = optax.adamw(learning_rate=0.002, b1=0.9, b2=0.99, weight_decay=1e-2)
+    opt = optax.adamw(learning_rate=0.05, b1=0.9, b2=0.99, weight_decay=1e-2)
     opt_state = opt.init(params)
     for (i, key_epoch) in enumerate(keys):
         time_start = time.time()
@@ -198,6 +203,7 @@ def train_adamw(key, params, epochs=15000, batch_size=20):
         time_epoch = time.time() - time_start
         print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g}s", end="   \r")
         if i % 100 == 0:
+            PARAMS = params
             train_print_loss(key_accuracy, params, x, y)
     return params
 
@@ -211,7 +217,7 @@ if __name__ == "__main__":
     try:
         params_trained = train_adamw(train_key, params)
     finally:
-        for i, layer in enumerate(params):
+        for i, layer in enumerate(PARAMS):
             print("LAYER", i)
             for j, param in enumerate(layer):
                 print("PARAM", j)

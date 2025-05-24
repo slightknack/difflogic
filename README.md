@@ -99,7 +99,35 @@
         - Turns out the answer is pretty bad
           - neural networks are magic
 - Next up: making the gate actually trainable
-
+  - I need to just get the vectors, like, moving
+  - let's try printing out the gradients
+  - wait, first let's try sgd, and seeing if the weights change:
+    - okay, no dice even with sgd
+      - (gate weights are still all 0.25)
+  - let's try init random weights?
+    - how would I know if they're learning?
+  - let's try init *non-constant* weights:
+    - but predictable pattern
+      - I used normalized arange
+        - so the weights were like 0, 1/6, 1/3, 1/2 or something
+    - yeah, the weights still didn't learn
+    - also tried looking at removing gate softmax, still doesn't learn -- it's not the softmax
+  - so I need to look at my implementation, let's check the gradients
+    - I'm using sgd, because it's simpler
+      - This is such a bad hack:
+        - `(print(g, dg), g - step_size * dg)[1]`
+    - wait, let's not round
+      - okay, even without rounding, still 0.25
+      - but the weights look to be non-constant during training? or the gradients?
+- Oh I'm so dumb, I'm printing the original params
+  - We need to print the trained params
+    - Part of me just wants to delete all this but I'm keeping it for the record
+  - Okay, so the network is learning the gate param, phew
+  - let's try to train to convergence and look at the params
+    - blows up to nan, sigh
+      - I'll stop before then
+        - I'll just use adamw
+- Okay, let's start over
 
 ## 2025-05-23
 
