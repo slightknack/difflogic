@@ -139,4 +139,72 @@
   - I tried clipping the weights between +/- 1:
     - loss gets down to 0.164 at epoch ~5000
     - then blows up to inf
-  - so evidently these hard constraints mess with numeric stability
+  - so evidently these hard constraints mess with numeric stability, probably not the best idea
+- I see the reference paper uses softmax to constrain the gate choice, maybe I should try that?
+  - with softmax:
+    - after 5000, loss is < 0.15
+    - after 7000, loss is < 0.13
+    - after **10000**, loss is 0.12
+  - without, for comparison:
+    - after 5000: loss is 0.161
+    - after **10000**, loss is 0.0829
+    - after 13000, loss is 0.0323
+  - look, I didn't line them up exactly,
+  - but it seems like softmax makes convergence a little slower?
+  - Not a big deal if I force a gate. So I'll consider this problem solved
+- So gates can be discretized, I want to regularize the weights
+  - The idea is that each gate takes two inputs from the previous layer
+  - We have a left matrix and a right matrix
+  - So each matrix needs to "select" one gate from the previous layer
+  - If that is the case, we could do like a softmax per layer (?) somehow. let's make that more concrete
+    - consider Ax -> b
+    - x is layer before, b is layer after
+    - we dot x with the first row of A to produce the first entry in b
+    - instead of a raw dot, we could softmax the first row of A before we dot, effectively normalizing the weights
+    - so we need to compute a row-wise softmax of the weight matrix? would that be too slow?
+    - testing with row-wise softmax, no gate-level softmax:
+      - after 1300 epochs, loss is 0.151
+        - that's fast! wowza!
+      - 5000, loss is 0.159
+        - hmmm, don't tell me it just plateaus
+        - maybe the initial drop was due to being able to essentially softmax the last layer, like 0.15 is the new 0.20, but it's just going to stay flat
+      - 10000, loss is still ~0.15
+        - no dice it seems
+    - I'm not going to give up, maybe we need a deeper network, since we're trying to force something sparser?
+    - trying \[9, *(\[48\] * 20), 1\]:
+      - oh gosh that's slow
+      - wait, I think the slowdown really is just printing the loss
+      - let me try removing that, ^C
+      - now printing every 100 epochs, wow that made a difference -- about 4ms / epoch
+      - bad news is, loss hovers around 0.2, as we've come to know.
+    - so depth doesn't really help anything, at least for what we're dealing with.
+- well, clipping the weights and softmaxing the weights doesn't work
+  - maybe I'll try sparse dot with all the gates? especially since there's no e.g. negative now
+    - now we're up to 13ms / epoch
+    - I guess that makes sense e.g. 4 * 4ms = 16ms, right order of magnitude
+    - epoch 5000, loss is 0.201
+    - I don't think it will converge
+- what about softmax weights + gate? maybe that's something?
+  - I also changed the way weights were initialized, to be uniform
+  - note with softmax the weights have no bias
+  - still 13 ms / epoch
+  - after 2000, loss is 0.214
+  - I should be patient, I suppose
+  - I will let this go to 15k
+  - after 7000, loss is 0.206
+  - after 10000, loss is 0.192
+  - after 15000, loss is 0.207
+  - yeah, really no progress, no dice
+- so this softmax weights idea is pretty bad
+  - I could try using a standard regularizer, like L1
+  - I could try implementing a custom regularizer
+  - I could try sparse wiring the right way, with fixed weights
+    - but where's the novelty in that?
+- I did a quick training run, \[9, 48, 48, 1\], standard weights (no softmax):
+  - loss was ~0.2 after 15000, 3ms / epoch
+  - Good news is training runs are faster
+  - Bad news is 0.2 loss sucks
+- Just for sanity's sake, with relu:
+  - Gosh, convergence so quick
+  - 1e-8 after 15000, man relu just cooks
+  - why is relu so good?

@@ -6,29 +6,30 @@ from pprint import pprint
 def gate_all(a, b):
     return jnp.array([
         # jnp.maximum(0., a),
-        # jnp.zeros_like(a),
+        jnp.zeros_like(a),
         a * b,
-        # a - a*b,
-        # a,
-        # b - a*b,
-        # b,
+        a - a*b,
+        a,
+        b - a*b,
+        b,
         a + b - 2.0*a*b,
         a + b - a*b,
-        # 1.0 - (a + b - a*b),
-        # 1.0 - (a + b - 2.0*a*b),
-        # 1.0 - b,
-       	# 1.0 - b + a*b,
-        # 1.0 - a,
-        # 1.0 - a + a*b,
+        1.0 - (a + b - a*b),
+        1.0 - (a + b - 2.0*a*b),
+        1.0 - b,
+       	1.0 - b + a*b,
+        1.0 - a,
+        1.0 - a + a*b,
         1.0 - a*b,
-        # jnp.ones_like(a),
+        jnp.ones_like(a),
     ])
 
 # gate_all(left, right) and w have shape (16, n)
 # where n is the dimension of left/right
 # This is a batched dot product along the second axis (axis 1)
 def gate(left, right, w):
-    return jnp.sum(gate_all(left, right) * w, axis=0)
+    w_soft = jnp.exp(w) / jnp.sum(jnp.exp(w), axis=0, keepdims=True)
+    return jnp.sum(gate_all(left, right) * w_soft, axis=0)
 
 def relu(left, right, w):
     return jnp.maximum(0., left)
@@ -56,7 +57,7 @@ def gate_normalize(w):
 
 # uniform random vectors length 16 whose entries sum to 1
 def rand_gate(_key, n):
-    return gate_normalize(jnp.ones((4, n)))
+    return gate_normalize(jnp.ones((16, n)))
     # return gate_normalize(random.uniform(key, (16, n)))
 
 def rand_layer(key, m, n):
@@ -73,12 +74,19 @@ def rand_network(key, sizes):
     dims = zip(keys, sizes[:-1], sizes[1:])
     return [rand_layer(*dim) for dim in dims]
 
+# def sparse_dot(lw, _lb, active):
+#     # softmax along row axis
+#     lw_soft = jnp.exp(lw) / jnp.sum(jnp.exp(lw), axis=1, keepdims=True)
+#     return jnp.dot(lw_soft, active)
+
 def predict(params, inp):
     active = inp
     for (lw, lb, rw, rb, g) in params:
         outs_l = jnp.dot(lw, active) + lb
         outs_r = jnp.dot(rw, active) + rb
-        active = gate(outs_l, outs_r, g)
+        # outs_l = sparse_dot(lw, lb, active)
+        # outs_r = sparse_dot(rw, rb, active)
+        active = relu(outs_l, outs_r, g)
     return active
 
 predict_batch = vmap(predict, in_axes=(None, 0))
@@ -88,18 +96,15 @@ def loss(params, inp, out):
     preds = predict_batch(params, inp)
     return jnp.mean(jnp.square(preds - out))
 
-def weight_normalize(weights):
-    return jnp.clip(weights, -1.0, 1.0)
-
 @jit
 def update(params, x, y, step_size):
     grads = grad(loss)(params, x, y)
     return [(
-        weight_normalize(lw - step_size * dlw),
-        weight_normalize(lb - step_size * dlb),
-        weight_normalize(rw - step_size * drw),
-        weight_normalize(rb - step_size * drb),
-        gate_normalize(g - step_size * dg),
+        lw - step_size * dlw,
+        lb - step_size * dlb,
+        rw - step_size * drw,
+        rb - step_size * drb,
+        g - step_size * dg,
     ) for
         (lw, lb, rw, rb, g),
         (dlw, dlb, drw, drb, dg)
@@ -155,8 +160,10 @@ def train(key, params, step_size=0.05, epochs=15000, batch_size=512):
         y = conway_kernel_batch(x)
         params = update(params, x, y, step_size)
         time_epoch = time.time() - time_start
-        print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g}s", end="; ")
-        train_print_loss(key_accuracy, params, x, y)
+        print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g}s", )
+        if i % 100 == 0:
+            print()
+            train_print_loss(key_accuracy, params, x, y)
     return params
 
 if __name__ == "__main__":
