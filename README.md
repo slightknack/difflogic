@@ -191,6 +191,21 @@ layer 6 (16, 1)
 ▁ ▁ █ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁ ▁
 ```
 
+- About the boxes:
+  - full boxes (`█`) for weight > 1,
+  - half (`▄`) for : \[0, 1\]
+  - "empty" (`▁`) for < 0
+  - It's supposed to give you an idea of what the softmax looks like for each gate
+- Well, that was a fun distraction, but like, why is this broken sigh
+  - I need to make a new plan. my options:
+    - read the code accompanying the paper carefully, and see what is different between that implementation and my implementation
+    - alternatively, trim the code down and down until I have the smallest example that works, and compare that to my example
+  - What's going well:
+    - I implemented a novel architecture from scratch, including the training loop, having only read the paper, and it trains (some networks better than others)
+    - I learned jax and optax and it's very cool (like a tracing jit compiler! and autodiff! awesome!!)
+- I think I'm going to try to basically copy the reference impl.
+  - Maybe there's a detail I overlooked that will make it click.
+
 ## 2025-05-23
 
 - got a simple version working
