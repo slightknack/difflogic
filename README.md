@@ -137,7 +137,6 @@
     - What isn't implemented:
       - fixed wiring
 - First, I'm going to cleanup and prune everything I don't need
-  -
 
 ## 2025-05-23
 

@@ -5,8 +5,6 @@ from jax import random
 import optax
 from pprint import pprint
 
-HARD = False
-PARAMS = None
 GATES = 16
 
 def gate_all(a, b):
@@ -33,23 +31,14 @@ def gate_all(a, b):
 # gate_all(left, right) and w have shape (16, n)
 # where n is the dimension of left/right
 # This is a batched dot product along the second axis (axis 1)
-def gate(left, right, w):
-    w_soft = jnp.exp(w) / jnp.sum(jnp.exp(w), axis=0, keepdims=True)
-    if HARD:
-        w_soft = jax.nn.one_hot(jnp.argmax(w, axis=0), GATES).T
-    return jnp.sum(gate_all(left, right) * w_soft, axis=0)
+def gate(left, right, w, hard):
+    w_gate = \
+        jnp.exp(w) / jnp.sum(jnp.exp(w), axis=0, keepdims=True) if not hard \
+        else jax.nn.one_hot(jnp.argmax(w, axis=0), GATES).T
+    return jnp.sum(gate_all(left, right) * w_gate, axis=0)
 
 def relu(left, right, w):
     return jnp.maximum(0., left)
-
-def rand_weight_connect(key, m, n, scale=1e-2):
-    w_key, b_key = random.split(key)
-    base_matrix = jnp.eye(jnp.maximum(n, m))[:n, :m]
-    perm = random.permutation(w_key, m)
-    w = base_matrix[:, perm]
-    pprint(w)
-    b = jnp.zeros(n,)
-    return (w, b)
 
 # m rows by n columns
 # n is input dim, m is output dim
@@ -59,15 +48,9 @@ def rand_weight_bias(key, m, n, scale=1e-2):
     b = scale * random.normal(b_key, (n,))
     return (w, b)
 
-def gate_normalize(w):
-    sum_col = jnp.sum(w, axis=0)
-    return w / sum_col[None,:]
-
 # uniform random vectors length 16 whose entries sum to 1
 def rand_gate(_key, n):
-    # return gate_normalize(jnp.tile(jnp.arange(GATES)[:, None], (1, n)))
-    return gate_normalize(jnp.ones((GATES, n)))
-    # return gate_normalize(random.uniform(key, (GATES, n)))
+    return jnp.full((GATES, n), 1  / GATES)
 
 def rand_layer(key, m, n):
     left_key, right_key, gate_key = random.split(key, 3)
@@ -83,26 +66,19 @@ def rand_network(key, sizes):
     dims = zip(keys, sizes[:-1], sizes[1:])
     return [rand_layer(*dim) for dim in dims]
 
-# def sparse_dot(lw, _lb, active):
-#     # softmax along row axis
-#     lw_soft = jnp.exp(lw) / jnp.sum(jnp.exp(lw), axis=1, keepdims=True)
-#     return jnp.dot(lw_soft, active)
-
-def predict(params, inp):
+def predict(params, inp, hard):
     active = inp
     for (lw, lb, rw, rb, g) in params:
         outs_l = jnp.dot(lw, active) + lb
         outs_r = jnp.dot(rw, active) + rb
-        # outs_l = sparse_dot(lw, lb, active)
-        # outs_r = sparse_dot(rw, rb, active)
-        active = gate(outs_l, outs_r, g)
+        active = relu(outs_l, outs_r, g, )#hard)
     return active
 
-predict_batch = vmap(predict, in_axes=(None, 0))
+predict_batch = vmap(predict, in_axes=(None, 0, None))
 
 # l2 loss
-def loss(params, inp, out):
-    preds = predict_batch(params, inp)
+def loss(params, inp, out, hard):
+    preds = predict_batch(params, inp, hard)
     return jnp.mean(jnp.square(preds - out))
 
 @jit
@@ -121,14 +97,10 @@ def update_sgd(params, x, y, step_size):
 
 # @jit
 def update_adamw(params, x, y, opt, opt_state):
-    grads = grad(loss)(params, x, y)
+    grads = grad(loss)(params, x, y, False)
     grads, opt_state = opt.update(grads, opt_state, params)
     new_params = optax.apply_updates(params, grads)
     return new_params, opt_state
-
-# def accuracy_batch(params, x, y):
-#     y_hat = predict_batch(params, x)
-#     return jnp.mean(jnp.square(y - y_hat))
 
 def conway_kernel(inp):
     def c_and(a, b): return a * b
@@ -141,13 +113,13 @@ def conway_kernel(inp):
 
 conway_kernel_batch = lambda x: jnp.expand_dims(vmap(conway_kernel)(x), axis=-1)
 
-# def conway_draw(inp):
-#     out = conway_kernel(inp)
-#     inp = inp.reshape((3, 3))
-#     for row in inp:
-#         for x in row:
-#             print("x" if x > 0.5 else "-", end="")
-#         print(" X" if out > 0.5 else " _")
+def conway_draw(inp):
+    out = conway_kernel(inp)
+    inp = inp.reshape((3, 3))
+    for row in inp:
+        for x in row:
+            print("x" if x > 0.5 else "-", end="")
+        print(" X" if out > 0.5 else " _")
 
 def conway_sample(key):
     return jnp.round(random.uniform(key, (9,), maxval=0.67))
@@ -156,57 +128,48 @@ def conway_sample_batch(key, size):
     keys = random.split(key, size)
     return vmap(conway_sample)(keys)
 
-def train_print_loss(key, params, x, y):
-    global HARD
+def train_adamw(key, params, epochs=2000, batch_size=20):
+    import time
+    keys = random.split(key, epochs)
+    opt = optax.adamw(learning_rate=0.05, b1=0.9, b2=0.99, weight_decay=1e-2)
+    opt_state = opt.init(params)
+    for (i, key_epoch) in enumerate(keys):
+        key_train, key_accuracy = random.split(key_epoch)
+
+        time_start = time.time()
+        x = conway_sample_batch(key_train, batch_size)
+        y = conway_kernel_batch(x)
+        params, opt_state = update_adamw(params, x, y, opt, opt_state)
+        time_epoch = time.time() - time_start
+
+        print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g}s", end="   \r")
+        if i % 100 == 0: debug_loss(key_accuracy, params, x, y)
+    return params
+
+def debug_loss(key, params, x, y):
     x_test = conway_sample_batch(key, x.shape[0])
     y_test = conway_kernel_batch(x_test)
-    train_loss = loss(params, x, y)
-    HARD = False
-    test_loss = loss(params, x_test, y_test)
-    HARD = True
-    test_loss_hard = loss(params, x_test, y_test)
-    HARD = False
-    preds = predict_batch(params, x_test)
+    train_loss = loss(params, x, y, False)
+    test_loss = loss(params, x_test, y_test, False)
+    test_loss_hard = loss(params, x_test, y_test, True)
+    preds = predict_batch(params, x_test, False)
     print(preds[0:5].flatten(), y_test[0:5].flatten())
     print(f"train_loss: {train_loss:.3g}", end="; ")
     print(f"test_loss: {test_loss:.3g}", end="; ")
     print(f"test_loss_hard: {test_loss_hard:.3g}")
 
-def train_sgd(key, params, step_size=0.1, epochs=15000, batch_size=20):
-    import time
-    global PARAMS
-    keys = random.split(key, epochs)
-    for (i, key_epoch) in enumerate(keys):
-        time_start = time.time()
-        key_train, key_accuracy = random.split(key_epoch)
-        x = conway_sample_batch(key_train, batch_size)
-        y = conway_kernel_batch(x)
-        params = update_sgd(params, x, y, step_size)
-        time_epoch = time.time() - time_start
-        print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g}s", end="   \r")
-        if i % 100 == 0:
-            PARAMS = params
-            train_print_loss(key_accuracy, params, x, y)
-    return params
-
-def train_adamw(key, params, epochs=15000, batch_size=20):
-    import time
-    global PARAMS
-    keys = random.split(key, epochs)
-    opt = optax.adamw(learning_rate=0.05, b1=0.9, b2=0.99, weight_decay=1e-2)
-    opt_state = opt.init(params)
-    for (i, key_epoch) in enumerate(keys):
-        time_start = time.time()
-        key_train, key_accuracy = random.split(key_epoch)
-        x = conway_sample_batch(key_train, batch_size)
-        y = conway_kernel_batch(x)
-        params, opt_state = update_adamw(params, x, y, opt, opt_state)
-        time_epoch = time.time() - time_start
-        print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g}s", end="   \r")
-        if i % 100 == 0:
-            PARAMS = params
-            train_print_loss(key_accuracy, params, x, y)
-    return params
+def debug_params(params):
+    for i, layer in enumerate(params):
+        print("LAYER", i)
+        for j, param in enumerate(layer):
+            print("PARAM", j)
+            for vec in param.tolist():
+                if isinstance(vec, list):
+                    print("> ", end="")
+                    for item in vec: print(f"{item:.3g} ", end="")
+                    print()
+                else:
+                    print(f"{vec:.3g}")
 
 if __name__ == "__main__":
     key = random.PRNGKey(379009)
@@ -215,18 +178,5 @@ if __name__ == "__main__":
     layer_sizes = [9, *([48] * 2), 1]
     params = rand_network(param_key, layer_sizes)
 
-    try:
-        params_trained = train_adamw(train_key, params)
-    finally:
-        for i, layer in enumerate(PARAMS):
-            print("LAYER", i)
-            for j, param in enumerate(layer):
-                print("PARAM", j)
-                for col in param.tolist():
-                    if isinstance(col, list):
-                        print("> ", end="")
-                        for item in col:
-                            print(f"{item:.3g} ", end="")
-                        print()
-                    else:
-                        print(f"{col:.3g}")
+    params_trained = train_adamw(train_key, params)
+    debug_params(params_trained)
