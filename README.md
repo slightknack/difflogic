@@ -77,6 +77,10 @@ Using JAX, train a network of logic gates to learn the 3x3 kernel function for C
 - let me try a training run, output hard to `gate.c`
   - Output! code has lots of copies, I should probably also implement copy prop sigh
 - going swimming, commit here.
+  - ANDs: 69
+  - ORs: 68
+  - XORs: 17
+  - NOTs: 16
 
 ## 2025-05-24
 
