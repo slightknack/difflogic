@@ -76,11 +76,22 @@ Using JAX, train a network of logic gates to learn the 3x3 kernel function for C
   - I wrote code to prune, nice
 - let me try a training run, output hard to `gate.c`
   - Output! code has lots of copies, I should probably also implement copy prop sigh
-- going swimming, commit here.
+- going to take a break, commit here.
   - ANDs: 69
   - ORs: 68
   - XORs: 17
   - NOTs: 16
+- back from break, compiling to c:
+  - implemented copy prop
+  - implemented dead code elim
+  - implemented variable renaming
+  - implemented formatting with template
+- compiles and it works!
+  - `python3 main.py`
+  - `gcc gate.c -O3 -o gate`
+  - `./gate`
+- This is so frickin' cool. I just trained a neural network and compiled the weights to C, at 1 bit quantization.
+  - also, note that `cell` is a `uint64_t`, so `conway` in `gate.c` actually performs parallel evaluation of 64 cells at once (e.g. an 8x8 tile)
 
 ## 2025-05-24
 

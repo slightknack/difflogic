@@ -1,0 +1,27 @@
+#include <stdint.h>
+#include <stdio.h>
+#define cell uint64_t
+
+cell conway(cell in[9]) {
+    cell in_0 = in[0];
+    cell in_1 = in[1];
+    cell in_2 = in[2];
+    cell in_3 = in[3];
+    cell in_4 = in[4];
+    cell in_5 = in[5];
+    cell in_6 = in[6];
+    cell in_7 = in[7];
+    cell in_8 = in[8];
+    {{ logic }}
+    return out;
+}
+
+int main() {
+    cell in[9] = {
+        1, 0, 1,
+        0, 0, 0,
+        0, 1, 0,
+    };
+    printf("%llu", conway(in));
+    return 0;
+}

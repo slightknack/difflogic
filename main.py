@@ -281,7 +281,7 @@ def ext_logic(params, wires):
 def ext_format(instr):
     (o, idx, l, r) = instr
     name = ext_gate_name(idx, l, r)
-    return f"cell {o} = {name};\n"
+    return f"    cell {o} = {name};\n"
 
 def ext_elim(instrs, root):
     out = []
@@ -312,7 +312,8 @@ def ext_alpha_count():
         yield letter
     for letter in ext_alpha_count():
         for subletter in letters:
-            yield letter + subletter
+            # j and q, only letters not used in c keywords
+            yield "q" + letter + subletter
 
 # for count in ext_alpha_count():
 #     print(count)
@@ -330,6 +331,15 @@ def ext_alpha_rename(instrs, root):
         out.append((o, idx, l, r))
     return out
 
+def ext_compile_to_c(params, wires):
+    with open("gate.c.template", "r") as fin:
+        before, after = fin.read().split("    {{ logic }}\n")
+    with open("gate.c", "w") as fout:
+        fout.write(before)
+        for instr in ext_logic(params, wires):
+            fout.write(ext_format(instr))
+        fout.write(after)
+
 if __name__ == "__main__":
     key = random.PRNGKey(379009)
     param_key, train_key = random.split(key)
@@ -338,9 +348,7 @@ if __name__ == "__main__":
     params, wires = rand_network(param_key, layer_sizes)
 
     params_trained = train_adamw(train_key, params, wires)
-    with open("gate.c", "w") as fout:
-        for instr in ext_logic(params_trained, wires):
-            fout.write(ext_format(instr))
+    ext_compile_to_c(params_trained, wires)
 
     # for instr in ext_logic(params, wires):
     #     print(ext_format(instr), end="")
