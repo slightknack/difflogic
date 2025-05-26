@@ -182,12 +182,13 @@ def train_adamw(key, params, wires, epochs=3001, batch_size=512):
         params, opt_state = update_adamw(params, wires, x, y, opt, opt_state)
         time_epoch = time.time() - time_start
 
-        print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g}s", end="   \r")
+        print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g} s/epoch", end="   \r")
         if i % 1000 == 0: debug_loss(key_accuracy, params, wires, x, y)
         # if i % 10000 == 0: debug_params(params)
     return params
 
 def debug_loss(key, params, wires, x, y):
+    print()
     x_test = conway_sample_batch(key, x.shape[0])
     y_test = conway_kernel_batch(x_test)
     train_loss = loss(params, wires, x, y, False)
@@ -254,31 +255,54 @@ def ext_add_deps(req, idx, l, r):
         req.add(g)
     return req
 
-def ext_gate(req, o, idx, l, r):
-    name = ext_gate_name(idx, l, r)
-    if o in req:
-        req = ext_add_deps(req, idx, l, r)
-        return req, f"cell {o} = {name};"
-    return req, None
-
-def ext_layer(req, param, left, right, layer):
+def ext_layer(param, left, right, layer):
     out = []
     for i, (g, l, r) in enumerate(zip(param.T, left, right)):
         idx_g = jnp.argmax(g, axis=0)
         idx_l = jnp.argmax(l, axis=0)
         idx_r = jnp.argmax(r, axis=0)
-        req, instr = ext_gate(req, f"g_{layer+1}_{i}", idx_g, f"g_{layer}_{idx_l}", f"g_{layer}_{idx_r}")
+        instr = (f"g_{layer+1}_{i}", idx_g, f"g_{layer}_{idx_l}", f"g_{layer}_{idx_r}")
         if instr is not None:
             out.append(instr)
-    return req, out
+    return out
 
 def ext_logic(params, wires):
     out = []
-    req = set(["g_24_0"])
     for layer, (param, (left, right)) in list(enumerate(zip(params, wires)))[::-1]:
         # print(param.shape, left.shape, right.shape)
-        req, instrs = ext_layer(req, param, left, right, layer)
+        instrs = ext_layer(param, left, right, layer)
         out = instrs + out
+    root = f"g_{len(params)}_{0}"
+    out = ext_elim(out, root)
+    out = ext_copy_prop(out, root)
+    return out
+
+def ext_format(instr):
+    (o, idx, l, r) = instr
+    name = ext_gate_name(idx, l, r)
+    return f"cell {o} = {name};\n"
+
+def ext_elim(instrs, root):
+    out = []
+    req = set([root])
+    for instr in instrs[::-1]:
+        (o, idx, l, r) = instr
+        if o in req:
+            req = ext_add_deps(req, idx, l, r)
+            out.append(instr)
+    return list(out[::-1])
+
+def ext_copy_prop(instrs, root):
+    out = []
+    rename = dict()
+    for instr in instrs:
+        (o, idx, l, r) = instr
+        if l in rename: l = rename[l]
+        if r in rename: r = rename[r]
+        if o == root: out.append((o, idx, l, r))
+        elif idx == 3: rename[o] = l
+        elif idx == 5: rename[o] = r
+        else: out.append((o, idx, l, r))
     return out
 
 if __name__ == "__main__":
@@ -290,6 +314,9 @@ if __name__ == "__main__":
 
     params_trained = train_adamw(train_key, params, wires)
 
+    # for instr in ext_logic(params, wires):
+    #     print(ext_format(instr), end="")
+
     with open("gate.c", "w") as fout:
         for instr in ext_logic(params_trained, wires):
-            fout.write(instr + "\n")
+            fout.write(ext_format(instr))
