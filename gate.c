@@ -320,9 +320,9 @@ int main() {
 
     for (size_t count = 0; count < 100000; count++) {
         // vvv comment out for benchmarking
-        // printf("\033[H");
-        // board_debug(&board);
-        // printf("Step: %zu\n", count);
+        printf("\033[H");
+        board_debug(&board);
+        printf("Step: %zu\n", count);
         // ^^^ comment out for benchmarking
         board_step_mut(&board, &sl, &sr, &so);
     }
