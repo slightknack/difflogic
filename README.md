@@ -8,25 +8,25 @@ Using logical 1-bit quantization implemented from scratch, with some elbow greas
 
 # to reproduce
 
-1. Clone this repo.
-2. Create and source a `venv`.
-3. Install dependencies listed below using pip
-3. Run `python3 main.py`.
+- Clone this repo.
+- Create and source a `venv`.
+- Install dependencies listed below using pip
+- Run `python3 main.py`.
   - This will train for 3000 epochs with jit (< 2 minutes).
   - Record the `s/epoch` time. Each epoch is 512 samples:
     - On my machine, I get `0.025 s/epoch`.
   - Verify `test_loss_hard: 0` at the end.
   - After training, this will produce a file, `gate.c`.
-4. Compile `gate.c` using your preferred c compiler:
+- Compile `gate.c` using your preferred c compiler:
   - `gcc gate.c -O3 -o gate -Wall -Wextra`
   - Run with `./gate`
-5. For benchmarking, comment out visualization
+- For benchmarking, comment out visualization
   - `C-f` `comment out`, three lines
-6. Benchmark with `time ./gate`
+- Benchmark with `time ./gate`
   - This runs 100k steps of GOL on a random board
   - Record how long it takes -> `bench_time`:
     - On my machine, program finishes in `4.08s`.
-7. Compute the speedup:
+- Compute the speedup:
   - `(512 * s/epoch) / (bench_time / 100000)`
   - As a lower bound, I got a *162,249x speedup.*
     - (When I benched, I modified `main.py` to not record weight update time.)
