@@ -275,6 +275,7 @@ def ext_logic(params, wires):
     root = f"g_{len(params)}_{0}"
     out = ext_elim(out, root)
     out = ext_copy_prop(out, root)
+    out = ext_alpha_rename(out, root)
     return out
 
 def ext_format(instr):
@@ -305,6 +306,30 @@ def ext_copy_prop(instrs, root):
         else: out.append((o, idx, l, r))
     return out
 
+def ext_alpha_count():
+    letters = "abcdefghijklmnopqrstuvwxyz"
+    for letter in letters:
+        yield letter
+    for letter in ext_alpha_count():
+        for subletter in letters:
+            yield letter + subletter
+
+# for count in ext_alpha_count():
+#     print(count)
+
+def ext_alpha_rename(instrs, root):
+    imm_regs = set(map(lambda i: i[0], instrs))
+    rename = dict(zip(imm_regs, ext_alpha_count()))
+    if root in rename: rename[root] = "out"
+    for i in range(9): rename[f"g_0_{i}"] = f"in_{i}"
+    out = []
+    for (o, idx, l, r) in instrs:
+        o = rename[o] if o in rename else o
+        l = rename[l] if l in rename else l
+        r = rename[r] if r in rename else r
+        out.append((o, idx, l, r))
+    return out
+
 if __name__ == "__main__":
     key = random.PRNGKey(379009)
     param_key, train_key = random.split(key)
@@ -313,10 +338,9 @@ if __name__ == "__main__":
     params, wires = rand_network(param_key, layer_sizes)
 
     params_trained = train_adamw(train_key, params, wires)
-
-    # for instr in ext_logic(params, wires):
-    #     print(ext_format(instr), end="")
-
     with open("gate.c", "w") as fout:
         for instr in ext_logic(params_trained, wires):
             fout.write(ext_format(instr))
+
+    # for instr in ext_logic(params, wires):
+    #     print(ext_format(instr), end="")
