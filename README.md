@@ -73,7 +73,10 @@ Using JAX, train a network of logic gates to learn the 3x3 kernel function for C
 - I'm going to duplicate `main.py` to create a alternate version with soft dot: `soft.py`:
 - before I actually implement that, I'm going to implement code for extracting the learned hard network:
   - I wrote code to generate some c code, but I really should prune the network before outputting it
+  - I wrote code to prune, nice
 - let me try a training run, output hard to `gate.c`
+  - Output! code has lots of copies, I should probably also implement copy prop sigh
+- going swimming, commit here.
 
 ## 2025-05-24
 

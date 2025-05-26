@@ -231,24 +231,54 @@ def ext_gate_name(idx, l, r):
     ]
     return names[idx](l, r)
 
-def ext_gate(o, idx, l, r):
-    name = ext_gate_name(idx, l, r)
-    return f"cell {o} = {name};"
+def ext_add_deps(req, idx, l, r):
+    deps = [
+        lambda a, b: [],
+        lambda a, b: [a, b],
+        lambda a, b: [a, b],
+        lambda a, b: [a],
+        lambda a, b: [a, b],
+        lambda a, b: [b],
+        lambda a, b: [a, b],
+        lambda a, b: [a, b],
+        lambda a, b: [a, b],
+        lambda a, b: [a, b],
+        lambda a, b: [b],
+        lambda a, b: [a, b],
+        lambda a, b: [a],
+        lambda a, b: [a, b],
+        lambda a, b: [a, b],
+        lambda a, b: [],
+    ]
+    for g in deps[idx](l, r):
+        req.add(g)
+    return req
 
-def ext_layer(param, left, right, layer):
+def ext_gate(req, o, idx, l, r):
+    name = ext_gate_name(idx, l, r)
+    if o in req:
+        req = ext_add_deps(req, idx, l, r)
+        return req, f"cell {o} = {name};"
+    return req, None
+
+def ext_layer(req, param, left, right, layer):
     out = []
     for i, (g, l, r) in enumerate(zip(param.T, left, right)):
         idx_g = jnp.argmax(g, axis=0)
         idx_l = jnp.argmax(l, axis=0)
         idx_r = jnp.argmax(r, axis=0)
-        out.append(ext_gate(f"g_{layer+1}_{i}", idx_g, f"g_{layer}_{idx_l}", f"g_{layer}_{idx_r}"))
-    return out
+        req, instr = ext_gate(req, f"g_{layer+1}_{i}", idx_g, f"g_{layer}_{idx_l}", f"g_{layer}_{idx_r}")
+        if instr is not None:
+            out.append(instr)
+    return req, out
 
 def ext_logic(params, wires):
     out = []
-    for layer, (param, (left, right)) in enumerate(zip(params, wires)):
+    req = set(["g_24_0"])
+    for layer, (param, (left, right)) in list(enumerate(zip(params, wires)))[::-1]:
         # print(param.shape, left.shape, right.shape)
-        out += ext_layer(param, left, right, layer)
+        req, instrs = ext_layer(req, param, left, right, layer)
+        out = instrs + out
     return out
 
 if __name__ == "__main__":
