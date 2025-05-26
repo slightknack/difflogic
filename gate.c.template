@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stdio.h>
-#define cell uint64_t
+#include <stdlib.h>
+
+typedef uint64_t cell;
 
 cell conway(cell in[9]) {
     cell in_0 = in[0];
@@ -16,12 +18,162 @@ cell conway(cell in[9]) {
     return out;
 }
 
+typedef struct {
+    cell* cells;
+    size_t cells_len;
+    size_t width;
+    size_t height;
+} board_t;
+
+void fatal(const char* message) {
+    fprintf(stderr, "fatal: %s\n", message);
+    exit(1);
+}
+
+board_t board_new(size_t width, size_t height) {
+    if (width % 64 != 0) { fatal("board width must be multiple of 64"); }
+
+    size_t cells_len = (size_t)(width / 64) * height;
+    cell* cells = malloc(cells_len * sizeof(cell));
+    if (cells == NULL) { fatal("not able to allocate memory for board "); }
+
+    board_t board = { cells, cells_len, width, height };
+    return board;
+}
+
+// https://en.wikipedia.org/wiki/Xorshift
+// constant is frac(golden_ratio) * 2^64
+// global state bad cry me a river
+uint64_t rand_state = 0x9e3779b97f4a7c55;
+
+uint64_t rand_uint64_t()
+{
+	uint64_t x = rand_state;
+	x ^= x << 13;
+	x ^= x >> 7;
+	x ^= x << 17;
+	rand_state = x;
+	return x;
+}
+
+cell rand_cell() {
+    // return 0x0101010101010101;
+    return rand_uint64_t();
+}
+
+void rand_board_mut(board_t *board) {
+    for (size_t i = 0; i < board->cells_len; ++i) {
+        board->cells[i] = rand_cell();
+    }
+}
+
+void board_debug(board_t *board) {
+    size_t cells_per_row = board->width / 64;
+    for (size_t i = 0; i < board->height; ++i) {
+        for (size_t j = 0; j < cells_per_row; ++j) {
+            cell current_cell = board->cells[i * cells_per_row + j];
+            for (int k = 0; k < 64; k++) {
+                if ((current_cell >> k) & 1) {
+                    printf("█ ");
+                } else {
+                    printf("  ");
+                }
+            }
+        }
+        printf("|\n");
+    }
+    for (size_t i = 0; i < board->width * 2; ++i) {
+        printf("-");
+    }
+    printf("\n");
+}
+
+void board_step_scratch_mut(
+    board_t *board,
+    board_t *scratch_left,
+    board_t *scratch_right
+) {
+    size_t cells_per_row = board->width / 64;
+    for (size_t i = 0; i < board->height; ++i) {
+        cell msb_prev = (board->cells[i * cells_per_row + cells_per_row - 1] >> 63) & 1;
+        for (size_t j = 0; j < cells_per_row; ++j) {
+            size_t idx = i * cells_per_row + j;
+            cell cell_curr = board->cells[idx];
+            cell cell_shift = cell_curr << 1;
+            cell msb_curr = (cell_curr >> 63) & 1;
+            scratch_left->cells[idx] = cell_shift | msb_prev;
+            msb_prev = msb_curr;
+        }
+    }
+    for (size_t i = 0; i < board->height; ++i) {
+        cell lsb_next = board->cells[i * cells_per_row] & 1;
+        for (size_t j = cells_per_row; j-- > 0; ) {
+            size_t idx = i * cells_per_row + j;
+            cell cell_curr = board->cells[idx];
+            cell cell_shift = cell_curr >> 1;
+            cell lsb_curr = cell_curr & 1;
+            scratch_right->cells[idx] = cell_shift | (lsb_next << 63);
+            lsb_next = lsb_curr;
+        }
+    }
+}
+
+void board_step_mut(
+    board_t *board,
+    board_t *s_left, // scratch
+    board_t *s_right,
+    board_t *s_out
+) {
+    board_step_scratch_mut(board, s_left, s_right);
+
+    size_t step = board->width / 64;
+    size_t wrap = board->cells_len;
+
+    for (size_t i = 0; i < board->cells_len; i++) {
+        cell in[9];
+        size_t i_top = (i + wrap - step) % wrap;
+        size_t i_bottom = (i + step) % wrap;
+        // top row
+        in[0] = s_left->cells[i_top];
+        in[1] = board->cells[i_top];
+        in[2] = s_right->cells[i_top];
+        // middle row
+        in[3] = s_left->cells[i];
+        in[4] = board->cells[i];
+        in[5] = s_right->cells[i];
+        // bottom row
+        in[6] = s_left->cells[i_bottom];
+        in[7] = board->cells[i_bottom];
+        in[8] = s_right->cells[i_bottom];
+        // update output
+        s_out->cells[i] = conway(in);
+    }
+
+    // double-buffering
+    cell* tmp_cells = board->cells;
+    board->cells = s_out->cells;
+    s_out->cells = tmp_cells;
+}
+
 int main() {
-    cell in[9] = {
-        1, 0, 1,
-        0, 0, 0,
-        0, 1, 0,
-    };
-    printf("%llu", conway(in));
-    return 0;
+    size_t width = 512;
+    size_t height = 512;
+
+    board_t board = board_new(width, height);
+    board_t sl = board_new(width, height);
+    board_t sr = board_new(width, height);
+    board_t so = board_new(width, height);
+
+    rand_board_mut(&board);
+
+    for (size_t count = 0; count < 100000; count++) {
+        // vvv comment out for benchmarking
+        printf("\033[H");
+        board_debug(&board);
+        printf("Step: %zu\n", count);
+        // ^^^ comment out for benchmarking
+        board_step_mut(&board, &sl, &sr, &so);
+    }
+
+    printf("done!\n");
 }

@@ -2,6 +2,37 @@
 
 Using JAX, train a network of logic gates to learn the 3x3 kernel function for Conway's Game of Life.
 
+# results
+
+Using logical 1-bit quantization implemented from scratch, with some elbow grease, I compiled a neural network (running on the GPU) to a 300-line single-threaded c program. This resulted in a **162,249x speedup.** That seems crazy but it's true.
+
+# to reproduce
+
+1. Clone this repo.
+2. Create and source a `venv`.
+3. Install dependencies listed below using pip
+3. Run `python3 main.py`.
+  - This will train for 3000 epochs with jit (< 2 minutes).
+  - Record the `s/epoch` time. Each epoch is 512 samples:
+    - On my machine, I get `0.025 s/epoch`.
+  - Verify `test_loss_hard: 0` at the end.
+  - After training, this will produce a file, `gate.c`.
+4. Compile `gate.c` using your preferred c compiler:
+  - `gcc gate.c -O3 -o gate -Wall -Wextra`
+  - Run with `./gate`
+5. For benchmarking, comment out visualization
+  - `C-f` `comment out`, three lines
+6. Benchmark with `time ./gate`
+  - This runs 100k steps of GOL on a random board
+  - Record how long it takes -> `bench_time`:
+    - On my machine, program finishes in `4.08s`.
+7. Compute the speedup:
+  - `(512 * s/epoch) / (bench_time / 100000)`
+  - As a lower bound, I got a *162,249x speedup.*
+    - (When I benched, I modified `main.py` to not record weight update time.)
+
+Hardware: 2023 MacBook Pro M3, 18GB
+
 # resources
 
 - [original paper/blog](https://google-research.github.io/self-organising-systems/difflogic-ca)
@@ -91,7 +122,23 @@ Using JAX, train a network of logic gates to learn the 3x3 kernel function for C
   - `gcc gate.c -O3 -o gate`
   - `./gate`
 - This is so frickin' cool. I just trained a neural network and compiled the weights to C, at 1 bit quantization.
-  - also, note that `cell` is a `uint64_t`, so `conway` in `gate.c` actually performs parallel evaluation of 64 cells at once (e.g. an 8x8 tile)
+  - also, note that `cell` is a `uint64_t`, so `conway` in `gate.c` actually performs parallel evaluation of 64 cells at once (e.g. an 8x8 tile)!
+- I'm going to try to benchmark this:
+  - Well, I implemented a little visualizer TUI thing, which is cool!
+  - On a 512x512 grid, battery saver on, it runs at a rate of
+    - 100k steps in 4.08s
+    - or 41 μs/step
+    - or 24509 steps/second, fps, whatever
+  - In comparison to the jax version, for a batch of 512, we were getting about 25 ms/epoch
+    - that would mean 512x512 = 12.8 seconds/step
+      - Might be unfair, jax does parallelize well
+      - I mean, let's test 512x512 batch size...
+        - Okay, it's like 6.62 s/epoch ~ 6.62 s/step
+        - which is better!
+  - We went from:
+    - 6.62 s/step network
+    - 41 μs/step c program
+  - **That's a 162,249.58x speedup.**
 
 ## 2025-05-24
 
