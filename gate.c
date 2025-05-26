@@ -200,12 +200,12 @@ board_t board_new(size_t width, size_t height) {
 uint64_t rand_state = 0x9e3779b97f4a7c55;
 
 uint64_t rand_uint64_t() {
-	uint64_t x = rand_state;
-	x ^= x << 13;
-	x ^= x >> 7;
-	x ^= x << 17;
-	rand_state = x;
-	return x;
+    uint64_t x = rand_state;
+    x ^= x << 13;
+    x ^= x >> 7;
+    x ^= x << 17;
+    rand_state = x;
+    return x;
 }
 
 cell rand_cell() {
