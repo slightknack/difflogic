@@ -210,47 +210,6 @@ def debug_params(params):
                 else: print("▄ ", end="")
             print()
 
-def ext_gate_name(idx, l, r):
-    names = [
-        lambda a, b: "0",
-        lambda a, b: f"{a} & {b}",
-        lambda a, b: f"{a} & ~{b}",
-        lambda a, b: a,
-        lambda a, b: f"{b} & ~{a}",
-        lambda a, b: b,
-        lambda a, b: f"{a} ^ {b}",
-        lambda a, b: f"{a} | {b}",
-        lambda a, b: f"~({a} | {b})",
-        lambda a, b: f"~({a} ^ {b})",
-        lambda a, b: f"~{b}",
-        lambda a, b: f"{a} | ~{b}",
-        lambda a, b: f"~{a}",
-        lambda a, b: f"{b} | ~{a}",
-        lambda a, b: f"~({a} & {b})",
-        lambda a, b: "~0",
-    ]
-    return names[idx](l, r)
-
-def ext_gate(o, idx, l, r):
-    name = ext_gate_name(idx, l, r)
-    return f"cell {o} = {name};"
-
-def ext_layer(param, left, right, layer):
-    out = []
-    for i, (g, l, r) in enumerate(zip(param.T, left, right)):
-        idx_g = jnp.argmax(g, axis=0)
-        idx_l = jnp.argmax(l, axis=0)
-        idx_r = jnp.argmax(r, axis=0)
-        out.append(ext_gate(f"g_{layer+1}_{i}", idx_g, f"g_{layer}_{idx_l}", f"g_{layer}_{idx_r}"))
-    return out
-
-def ext_logic(params, wires):
-    out = []
-    for layer, (param, (left, right)) in enumerate(zip(params, wires)):
-        # print(param.shape, left.shape, right.shape)
-        out += ext_layer(param, left, right, layer)
-    return out
-
 if __name__ == "__main__":
     key = random.PRNGKey(379009)
     param_key, train_key = random.split(key)
@@ -259,7 +218,4 @@ if __name__ == "__main__":
     params, wires = rand_network(param_key, layer_sizes)
 
     params_trained = train_adamw(train_key, params, wires)
-
-    with open("gate.c", "w") as fout:
-        for instr in ext_logic(params_trained, wires):
-            fout.write(instr + "\n")
+    debug_params(params_trained)
