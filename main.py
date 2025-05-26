@@ -5,6 +5,7 @@ from jax import random
 import optax
 from pprint import pprint
 import functools
+import itertools
 
 GATES = 16
 
@@ -53,26 +54,59 @@ def rand_gate(key, n):
     return result
     # return jnp.full((GATES, n), 1. / GATES)
 
-def rand_wire_pairs(key, m, n):
-    keys = random.split(key, n)
-    pairs_indices = jnp.stack([random.permutation(key, m)[:2] for key in keys]).T
-    left = jax.nn.one_hot(pairs_indices[0, :], num_classes=m)
-    right = jax.nn.one_hot(pairs_indices[1, :], num_classes=m)
+def pairs_rand(key, m, n_left):
+    keys = random.split(key, n_left)
+    return jnp.stack([random.permutation(key, m)[:2] for key in keys]).T
+
+def pairs_rand_pad(key, pairs, m, n):
+    if len(pairs) < n:
+        print("↳ with random padding")
+        pairs_pad = pairs_rand(key, m, n - len(pairs)).T
+        pairs = jnp.concatenate([pairs, pairs_pad], axis=0)
+    else:
+        pairs = pairs[:n]
+    return pairs
+
+def wire_from_pairs(pairs, m, n):
+    assert n, len(pairs)
+    left = jax.nn.one_hot(pairs[0, :], num_classes=m)
+    right = jax.nn.one_hot(pairs[1, :], num_classes=m)
     return left, right
 
-def tree_wire_pairs(m, n):
-    print("tree wire")
+def wire_rand(key, m, n):
+    pairs = pairs_rand(key, m, n)
+    return wire_from_pairs(pairs, m, n)
+
+def wire_rand_unique(key, m, n):
+    print("unique wire", m, "→", n)
+    evens = zip(range(0, m)[0::2], range(0, m)[1::2])
+    odds = zip(range(0, m)[1::2], list(range(0, m)[2::2]) + [0])
+    pairs = jnp.array([*evens, *odds])
+    key_rand, key_perm = random.split(key)
+    pairs = pairs_rand_pad(key_rand, pairs, m, n)
+    pairs = random.permutation(key_perm, pairs)
+    return wire_from_pairs(pairs.T, m, n)
+
+# m input, n output
+def wire_rand_comb(key, m, n):
+    print("comb wire", m, "→", n)
+    key, key_sub = random.split(key)
+    pairs = random.permutation(key_sub, jnp.array(list(itertools.combinations(list(range(m)), 2))))
+    pairs = pairs_rand_pad(key, pairs, m, n)
+    return wire_from_pairs(pairs.T, m, n)
+
+def wire_tree(m, n):
+    print("tree wire", m, "→", n)
     assert m, 2*n
-    pairs_indices = jnp.arange(m).reshape((2, n))
-    left = jax.nn.one_hot(pairs_indices[0, :], num_classes=m)
-    right = jax.nn.one_hot(pairs_indices[1, :], num_classes=m)
-    return left, right
+    pairs = jnp.arange(m).reshape((2, n))
+    return wire_from_pairs(pairs, m, n)
 
 def rand_layer(key, m, n):
     left_key, right_key, gate_key = random.split(key, 3)
-    left, right = rand_wire_pairs(left_key, m, n)
-    if m == 2*n:
-        left, right = tree_wire_pairs(m, n)
+    # left, right = wire_tree(m, n) if m == 2*n \
+    #     else wire_rand_unique(left_key, m, n)
+    # left, right = wire_rand_comb(left_key, m, n)
+    left, right = wire_rand_unique(left_key, m, n)
     param = rand_gate(gate_key, n)
     wires = (left, right)
     return param, wires
@@ -131,13 +165,12 @@ def conway_sample_batch(key, size):
     keys = random.split(key, size)
     return vmap(conway_sample)(keys)
 
-def train_adamw(key, params, wires, epochs=200000, batch_size=512):
+def train_adamw(key, params, wires, epochs=3001, batch_size=512):
     import time
     keys = random.split(key, epochs)
     opt = optax.chain(
         optax.clip(100.0),
         optax.adamw(learning_rate=0.05, b1=0.9, b2=0.99, weight_decay=1e-2)
-
     )
     opt_state = opt.init(params)
     for (i, key_epoch) in enumerate(keys):
@@ -151,7 +184,7 @@ def train_adamw(key, params, wires, epochs=200000, batch_size=512):
 
         print(f"Epoch ({i+1}/{epochs}) in {time_epoch:.3g}s", end="   \r")
         if i % 1000 == 0: debug_loss(key_accuracy, params, wires, x, y)
-        if i % 10000 == 0: debug_params(params)
+        # if i % 10000 == 0: debug_params(params)
     return params
 
 def debug_loss(key, params, wires, x, y):

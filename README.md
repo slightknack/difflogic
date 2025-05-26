@@ -20,6 +20,53 @@ Using JAX, train a network of logic gates to learn the 3x3 kernel function for C
 
 # journal
 
+## 2025-05-26
+
+- back!
+- where I left off:
+  - got a big network converging
+  - didn't get perfect convergence
+    - probably due to wiring
+- what to try:
+  - better wiring
+  - soft dot weights
+  - extracting discrete network at the end
+- planning better wiring
+  - essentially, we need to generate unique *pairs* of wires, and shuffle those.
+    - If input `m` = `2*n` output, we can do:
+      - (1, 2), (3, 4), ...
+    - If input `m` = `n` output, we can do:
+      - (1, 2), (3, 4), ...
+      - (2, 3), (4, 5), ...
+    - This is what they do in the paper
+      - I think the extend it a little further
+      - but anything in m : \[n, 2*n\] is possible
+  - I will implement this approach:
+    - First pair up: (1, 2), (3, 4), ...
+    - Once that is exhausted, pair up: (2, 3), (4, 5), ...
+    - Once that is exhausted, do random pairs
+  - This is simple but should be better than what I have now.
+    - Wait, I can just use itertools.combinations!
+      - Nevermind, I want a uniform distribution of unique pairs
+- implementing better wiring
+  - 25 ms/epoch
+  - no tree: epoch 3000, loss 0.0245, hard 0.123
+  - with tree: epoch 3000, loss 0.00342, hard 0.00781
+  - comb with tree: epoch 3000, loss 0.0145, hard 0.0215
+  - comb no tree: epoch 3000, loss 0.0337, hard 0.0801
+- okay, so the fancier wiring did not yield better results
+  - maybe I should use the unique wiring used in the paper, exactly as described
+    - YESYEYSYEYSYEYS!
+    - epoch 3000, loss 9.91e-05, hard 0
+      - HARD 0
+        - we learned a **perfect** circuit for conway's!
+- mission complete.
+  - Now all the fun stuff:
+    - extracting the network
+    - writing a little interactive demo and animations
+    - writing a blog post
+- let me commit here
+
 ## 2025-05-24
 
 - some things to try:
