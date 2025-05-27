@@ -4,7 +4,7 @@ Using JAX, train a network of logic gates to learn the 3x3 kernel function for C
 
 # results
 
-Using logical 1-bit quantization implemented from scratch, with some elbow grease, I compiled a neural network (running on the GPU) to a 300-line single-threaded c program. This resulted in a **1,744x speedup.** Reproduction steps and development journal below.
+Using logical 1-bit quantization implemented from scratch, with some elbow grease, I compiled a neural network (running on the GPU) to a 300-line single-threaded c program (running on the CPU). This resulted in a **1,744x speedup.** Reproduction steps and development journal below.
 
 # resources
 
