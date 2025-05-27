@@ -6,11 +6,27 @@ Using JAX, train a network of logic gates to learn the 3x3 kernel function for C
 
 Using logical 1-bit quantization implemented from scratch, with some elbow grease, I compiled a neural network (running on the GPU) to a 300-line single-threaded c program. This resulted in a **1,744x speedup.** Reproduction steps and development journal below.
 
+# resources
+
+- [original paper/blog](https://google-research.github.io/self-organising-systems/difflogic-ca)
+- [training nn in jax](https://docs.jax.dev/en/latest/notebooks/neural_network_with_tfds_data.html)
+- [google colab](https://colab.research.google.com/github/google-research/self-organising-systems/blob/master/notebooks/diffLogic_CA.ipynb)
+- [conway gol shader](https://blog.tonari.no/shadergarden)
+- [flax linen nn docs](https://flax.readthedocs.io/en/v0.5.3/overview.html)
+- [optax optimizer docs](https://optax.readthedocs.io/en/latest/index.html)
+
+# dependencies
+
+- jax
+- flax
+- optax
+- einops
+
 # to reproduce
 
 - Clone this repo.
 - Create and source a `venv`.
-- Install dependencies listed below using pip
+- Install dependencies listed above using `pip`
 - Run `python3 main.py`.
   - This will train for 3000 epochs with jit (< 2 minutes).
   - Record the `s/epoch` time. Each epoch is 512 samples:
@@ -33,22 +49,6 @@ Using logical 1-bit quantization implemented from scratch, with some elbow greas
     - (When I benched, I modified `main.py` to not record weight update time.)
 
 Hardware: 2023 MacBook Pro M3, 18GB
-
-# resources
-
-- [original paper/blog](https://google-research.github.io/self-organising-systems/difflogic-ca)
-- [training nn in jax](https://docs.jax.dev/en/latest/notebooks/neural_network_with_tfds_data.html)
-- [google colab](https://colab.research.google.com/github/google-research/self-organising-systems/blob/master/notebooks/diffLogic_CA.ipynb)
-- [conway gol shader](https://blog.tonari.no/shadergarden)
-- [flax linen nn docs](https://flax.readthedocs.io/en/v0.5.3/overview.html)
-- [optax optimizer docs](https://optax.readthedocs.io/en/latest/index.html)
-
-# dependencies
-
-- jax
-- flax
-- optax
-- einops
 
 # journal
 
