@@ -4,7 +4,7 @@ Using JAX, train a network of logic gates to learn the 3x3 kernel function for C
 
 # results
 
-Using logical 1-bit quantization implemented from scratch, with some elbow grease, I compiled a neural network (running on the GPU) to a 300-line single-threaded c program. This resulted in a **162,249x speedup.** That seems crazy but it's true.
+Using logical 1-bit quantization implemented from scratch, with some elbow grease, I compiled a neural network (running on the GPU) to a 300-line single-threaded c program. This resulted in a **1,744x speedup.** Reproduction steps and development journal below.
 
 # to reproduce
 
@@ -14,7 +14,8 @@ Using logical 1-bit quantization implemented from scratch, with some elbow greas
 - Run `python3 main.py`.
   - This will train for 3000 epochs with jit (< 2 minutes).
   - Record the `s/epoch` time. Each epoch is 512 samples:
-    - On my machine, I get `0.025 s/epoch`.
+    - On my machine, I get `0.000139 s/epoch`.
+      - (I modified `main.py` to not time weight update, otherwise `0.025 s/epoch` is normal)
   - Verify `test_loss_hard: 0` at the end.
   - After training, this will produce a file, `gate.c`.
 - Compile `gate.c` using your preferred c compiler:
@@ -28,7 +29,7 @@ Using logical 1-bit quantization implemented from scratch, with some elbow greas
     - On my machine, program finishes in `4.08s`.
 - Compute the speedup:
   - `(512 * s/epoch) / (bench_time / 100000)`
-  - As a lower bound, I got a *162,249x speedup.*
+  - As a lower bound, I got a **1,744x speedup.**
     - (When I benched, I modified `main.py` to not record weight update time.)
 
 Hardware: 2023 MacBook Pro M3, 18GB
@@ -139,6 +140,11 @@ Hardware: 2023 MacBook Pro M3, 18GB
     - 6.62 s/step network
     - 41 μs/step c program
   - **That's a 162,249.58x speedup.**
+- Okay, that's obviously too good. After fixing up `main.py`:
+  - python:`0.000139 s/epoch`
+  - compiled: `41 μs/step`
+  - speedup: `1,744.31x`.
+  - **A 1744x speedup is still very good!**
 
 ## 2025-05-24
 
