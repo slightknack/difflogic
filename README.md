@@ -1,21 +1,25 @@
-![difflogic.svg]
+<img alt="difflogic" src="difflogic.svg">
 
-# goal
+*"Where we're going, we won't need vectors!"*
+ 
+I've been reading about *1-bit quantization* for NNs. The idea is pretty fun! The other day, I ran into some [great research][research] taking things a step further, using NNs to learn logic circuits. I replicated this research from scratch, and trained a neural network **with logic gates in the place of activation functions** to learn the 3x3 kernel function for *Conway's Game of Life*. 
 
-Using JAX, train a network of logic gates to learn the 3x3 kernel function for Conway's Game of Life.
+I wanted to see if I could speed up inference by extracting and compiling the learned logic circuit. So I wrote some code to extract and compile the trained network to pure C (including some simple optimizations like copy propogation and dead code elimination)! I benchmarked the original NN using for training (running on the GPU) against the extracted 300-line single-threaded C program (running on the CPU). ...
 
-# results
+... and compiling the neural network to C resulted in a **1,744x speedup.** Yeah, crazy right? 
 
-Using logical 1-bit quantization implemented from scratch, with some elbow grease, I compiled a neural network (running on the GPU) to a 300-line single-threaded c program (running on the CPU). This resulted in a **1,744x speedup.** Reproduction steps and development journal below.
+I had a lot of fun. Reproduction steps and development journal below! Enjoy.
 
 # resources
 
-- [original paper/blog](https://google-research.github.io/self-organising-systems/difflogic-ca)
+- [original paper/blog][research]
 - [training nn in jax](https://docs.jax.dev/en/latest/notebooks/neural_network_with_tfds_data.html)
 - [google colab](https://colab.research.google.com/github/google-research/self-organising-systems/blob/master/notebooks/diffLogic_CA.ipynb)
 - [conway gol shader](https://blog.tonari.no/shadergarden)
 - [flax linen nn docs](https://flax.readthedocs.io/en/v0.5.3/overview.html)
 - [optax optimizer docs](https://optax.readthedocs.io/en/latest/index.html)
+
+[research]: https://google-research.github.io/self-organising-systems/difflogic-ca
 
 # dependencies
 
@@ -147,6 +151,9 @@ Hardware: 2023 MacBook Pro M3, 18GB
   - compiled: `41 μs/step`
   - speedup: `1,744.31x`.
   - **A 1744x speedup is still very good!**
+- I asked my brother draw a cool person unraveling for the logo.
+- Probably about done with this project, I might write a blog post though.
+- Cleaned up the README a bit. Night!
 
 ## 2025-05-24
 
