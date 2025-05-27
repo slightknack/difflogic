@@ -38,7 +38,7 @@ Using logical 1-bit quantization implemented from scratch, with some elbow greas
   - `gcc gate.c -O3 -o gate -Wall -Wextra`
   - Run with `./gate`
 - For benchmarking, comment out visualization
-  - `C-f` `comment out`, three lines
+  - In `gate.c` run `C-f` to find `comment out`, three lines
 - Benchmark with `time ./gate`
   - This runs 100k steps of GOL on a random board
   - Record how long it takes -> `bench_time`:
