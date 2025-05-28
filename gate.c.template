@@ -1,6 +1,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <time.h>
 
 typedef uint64_t cell;
 
@@ -28,6 +31,30 @@ typedef struct {
 void fatal(const char* message) {
     fprintf(stderr, "fatal: %s\n", message);
     exit(1);
+}
+
+// Get current terminal column count (0 on failure)
+static size_t get_terminal_width(void) {
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1) return 0;
+    return (size_t)ws.ws_col;
+}
+
+// Block until the terminal is at least required columns wide
+static void wait_for_terminal_width(size_t required) {
+    // delay for 100 ms
+    const struct timespec delay = {0, 100 * 1000 * 1000};
+    while (1) {
+        size_t cols = get_terminal_width();
+        if (cols >= required) return;
+        fprintf(stderr,
+                "\033[2J\033[H"
+                "Terminal width is %zu cols; need at least %zu. "
+                "Resize the window to continue…\n",
+                cols, required);
+        fflush(stderr);
+        nanosleep(&delay, NULL);
+    }
 }
 
 board_t board_new(size_t width, size_t height) {
@@ -167,6 +194,7 @@ int main() {
 
     for (size_t count = 0; count < 100000; count++) {
         // vvv comment out for benchmarking
+        wait_for_terminal_width(board.width * 2);
         printf("\033[H");
         board_debug(&board);
         printf("Step: %zu\n", count);
