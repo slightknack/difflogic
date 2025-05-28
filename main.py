@@ -3,7 +3,6 @@ import jax.numpy as jnp
 from jax import grad, jit, vmap
 from jax import random
 import optax
-from pprint import pprint
 import functools
 import itertools
 
