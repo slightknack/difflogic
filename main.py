@@ -307,19 +307,24 @@ def ext_copy_prop(instrs, root):
     return out
 
 def ext_alpha_count():
-    letters = "abcdefghijklmnopqrstuvwxyz"
+    # j and q, only letters not used in c keywords
+    # no d or f to avoid do or if
+    letters = "abceghijklmnopqrstuvwxyz"
     for letter in letters:
         yield letter
     for letter in ext_alpha_count():
         for subletter in letters:
-            # j and q, only letters not used in c keywords
-            yield "q" + letter + subletter
+            yield letter + subletter
 
 # for count in ext_alpha_count():
 #     print(count)
 
+def ext_regs_unique(instrs):
+    seen = set()
+    return [(o, seen.add(o))[0] for (o, _, _, _) in instrs if o not in seen]
+
 def ext_alpha_rename(instrs, root):
-    imm_regs = set(map(lambda i: i[0], instrs))
+    imm_regs = ext_regs_unique(instrs)
     rename = dict(zip(imm_regs, ext_alpha_count()))
     if root in rename: rename[root] = "out"
     for i in range(9): rename[f"g_0_{i}"] = f"in_{i}"

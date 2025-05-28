@@ -58,6 +58,22 @@ Hardware: 2023 MacBook Pro M3, 18GB
 
 # journal
 
+## 2025-05-27
+
+- well, I'm back again. Not planning to spend too much more time on this.
+- I implemented better renaming of variables for codegen.
+- I have a few fun ideas:
+  - Try soft weights. I'll duplicate `main.py` to another file file, `soft.py`.
+  - *Reintegration Tracking* is a technique for fluid simulation using CA. I've implemented it before. I might try to get it working, because then I could try to learn a logic circuit for fluid simulation, which would be crazy.
+  - I've implemented single-threaded bit-parallel conway's game of life in C, but this is so *embarrassingly* parallel that a GPU compute shader implementation using e.g. WebGPU or [slang][slang] might be in order.
+- I really want to write a blog post. So I'll start on that before I do anything else.
+  - I'll write it for Anthony, will be fun.
+  - Still working on it ... sigh
+  - Okay I finished and it's tomorrow that took way too long. Published. Night.
+
+
+[slang]: https://shader-slang.org/
+
 ## 2025-05-26
 
 - back!
