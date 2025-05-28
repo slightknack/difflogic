@@ -66,6 +66,20 @@ def pairs_rand_pad(key, pairs, m, n):
         pairs = pairs[:n]
     return pairs
 
+def pairs_comb_pad(key, pairs, m, n):
+    def canonical(t): return tuple(sorted([*t]))
+    existing = set(map(canonical, pairs.tolist()))
+    if len(pairs) < n:
+        perms = random.permutation(key, jnp.array(list(itertools.combinations(list(range(m)), 2))))
+        pairs_new = jnp.array([p for p in perms if canonical(p.tolist()) not in existing])
+        pairs_rand_new = pairs_rand(key, m, max(0, n - len(pairs) - len(pairs_new))).T
+        print("↳ with comb padding", len(pairs_new))
+        print("↳ with rand padding", len(pairs_rand_new))
+        pairs = jnp.concatenate([pairs, pairs_new, pairs_rand_new], axis=0)
+    else:
+        pairs = pairs[:n]
+    return pairs
+
 def wire_from_pairs(pairs, m, n):
     assert n, len(pairs)
     left = jax.nn.one_hot(pairs[0, :], num_classes=m)
@@ -82,7 +96,7 @@ def wire_rand_unique(key, m, n):
     odds = zip(range(0, m)[1::2], list(range(0, m)[2::2]) + [0])
     pairs = jnp.array([*evens, *odds])
     key_rand, key_perm = random.split(key)
-    pairs = pairs_rand_pad(key_rand, pairs, m, n)
+    pairs = pairs_comb_pad(key_rand, pairs, m, n)
     pairs = random.permutation(key_perm, pairs)
     return wire_from_pairs(pairs.T, m, n)
 
