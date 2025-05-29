@@ -10,7 +10,7 @@ GATES = 16
 
 def gate_all(a, b):
     return jnp.array([
-        # jnp.maximum(0., a),
+        # jnp.maximum(0., a)
         jnp.zeros_like(a),
         a * b,
         a - a*b,
@@ -172,13 +172,16 @@ def conway_draw(inp):
         print(" X" if out > 0.5 else " _")
 
 def conway_sample(key):
-    return jnp.round(random.uniform(key, (9,), maxval=0.67))
+    return jnp.round(random.uniform(key, (9,)))
 
 def conway_sample_batch(key, size):
     keys = random.split(key, size)
     return vmap(conway_sample)(keys)
 
-def train_adamw(key, params, wires, epochs=3001, batch_size=512):
+def conway_sample_all():
+    return jnp.array([[float(b) for b in bin(i)[2:].zfill(9)] for i in range(512)])
+
+def train_adamw(key, params, wires, epochs=5001, batch_size=512):
     import time
     keys = random.split(key, epochs)
     opt = optax.chain(
@@ -186,12 +189,13 @@ def train_adamw(key, params, wires, epochs=3001, batch_size=512):
         optax.adamw(learning_rate=0.05, b1=0.9, b2=0.99, weight_decay=1e-2)
     )
     opt_state = opt.init(params)
+
+    x = conway_sample_all()
+    y = conway_kernel_batch(x)
     for (i, key_epoch) in enumerate(keys):
         key_train, key_accuracy = random.split(key_epoch)
 
         time_start = time.time()
-        x = conway_sample_batch(key_train, batch_size)
-        y = conway_kernel_batch(x)
         params, opt_state = update_adamw(params, wires, x, y, opt, opt_state)
         time_epoch = time.time() - time_start
 
@@ -202,7 +206,7 @@ def train_adamw(key, params, wires, epochs=3001, batch_size=512):
 
 def debug_loss(key, params, wires, x, y):
     print()
-    x_test = conway_sample_batch(key, x.shape[0])
+    x_test = conway_sample_all()
     y_test = conway_kernel_batch(x_test)
     train_loss = loss(params, wires, x, y, False)
     test_loss = loss(params, wires, x_test, y_test, False)
@@ -362,7 +366,7 @@ if __name__ == "__main__":
     key = random.PRNGKey(379009)
     param_key, train_key = random.split(key)
 
-    layer_sizes = [9, *([128] * 17), 64, 32, 16, 8, 4, 2, 1]
+    layer_sizes = [9, *([512] * 17), 64, 32, 16, 8, 4, 2, 1]
     params, wires = rand_network(param_key, layer_sizes)
 
     params_trained = train_adamw(train_key, params, wires)
