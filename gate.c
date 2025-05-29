@@ -4,6 +4,32 @@
 
 typedef uint64_t cell;
 
+// human attempt, 32 gates
+cell conway_clayton(cell in[9]) {
+    // pairs
+    cell p01 = in[0] ^ in[1];
+    cell p11 = in[2] ^ in[3];
+    cell p21 = in[5] ^ in[6];
+    cell p31 = in[7] ^ in[8];
+    cell p02 = in[0] & in[1];
+    cell p12 = in[2] & in[3];
+    cell p22 = in[5] & in[6];
+    cell p32 = in[7] & in[8];
+    // halfs
+    cell h01 = p01 ^ p11;
+    cell h11 = p21 ^ p31;
+    cell h02 = (p02 ^ p12) | (p01 & p11);
+    cell h12 = (p22 ^ p32) | (p21 & p31);
+    cell h03 = (p02 ^ p12) & (p01 ^ p11);
+    cell h13 = (p22 ^ p32) & (p21 ^ p31);
+    // neighbors
+    cell n2 = (h02 ^ h12) | (h01 & h11);
+    cell n3 = (h03 ^ h13) | ((h02 ^ h12) & (h01 ^ h11));
+    // rule
+    cell out = n3 | (in[4] & n2);
+    return out;
+}
+
 cell conway(cell in[9]) {
     cell in_0 = in[0];
     cell in_1 = in[1];
@@ -340,9 +366,9 @@ int main() {
 
     for (size_t count = 0; count < 100000; count++) {
         // vvv comment out for benchmarking
-        printf("\033[H");
-        board_debug(&board);
-        printf("Step: %zu\n", count);
+        // printf("\033[H");
+        // board_debug(&board);
+        // printf("Step: %zu\n", count);
         // ^^^ comment out for benchmarking
         board_step_mut(&board, &sl, &sr, &so);
     }
