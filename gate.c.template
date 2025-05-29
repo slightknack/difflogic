@@ -4,9 +4,13 @@
 
 typedef uint64_t cell;
 
-// human attempt, 32 gates
+// human attempt, 54 gates
 cell conway_clayton(cell in[9]) {
     // pairs
+    cell p00 = ~(in[0] | in[1]);
+    cell p10 = ~(in[2] | in[3]);
+    cell p20 = ~(in[5] | in[6]);
+    cell p30 = ~(in[7] | in[8]);
     cell p01 = in[0] ^ in[1];
     cell p11 = in[2] ^ in[3];
     cell p21 = in[5] ^ in[6];
@@ -16,15 +20,17 @@ cell conway_clayton(cell in[9]) {
     cell p22 = in[5] & in[6];
     cell p32 = in[7] & in[8];
     // halfs
-    cell h01 = p01 ^ p11;
-    cell h11 = p21 ^ p31;
-    cell h02 = (p02 ^ p12) | (p01 & p11);
-    cell h12 = (p22 ^ p32) | (p21 & p31);
-    cell h03 = (p02 ^ p12) & (p01 ^ p11);
-    cell h13 = (p22 ^ p32) & (p21 ^ p31);
+    cell h00 = p00 & p10;
+    cell h10 = p20 & p30;
+    cell h01 = (p00 & p11) | (p10 & p01);
+    cell h11 = (p20 & p31) | (p30 & p21);
+    cell h03 = (p02 & p11) | (p12 & p01);
+    cell h13 = (p22 & p31) | (p32 & p21);
+    cell h02 = (p02 & p10) | (p00 & p12) | (p01 & p11);
+    cell h12 = (p22 & p30) | (p20 & p32) | (p21 & p31);
     // neighbors
-    cell n2 = (h02 ^ h12) | (h01 & h11);
-    cell n3 = (h03 ^ h13) | ((h02 ^ h12) & (h01 ^ h11));
+    cell n2 = (h01 & h11) | (h02 & h10) | (h00 & h12);
+    cell n3 = (h03 & h10) | (h13 & h00) | (h02 & h11 ) | (h12 & h01);
     // rule
     cell out = n3 | (in[4] & n2);
     return out;
