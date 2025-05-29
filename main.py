@@ -116,10 +116,10 @@ def wire_tree(m, n):
 
 def rand_layer(key, m, n):
     left_key, right_key, gate_key = random.split(key, 3)
-    # left, right = wire_tree(m, n) if m == 2*n \
-    #     else wire_rand_unique(left_key, m, n)
-    # left, right = wire_rand_comb(left_key, m, n)
-    left, right = wire_rand_unique(left_key, m, n)
+    if n > m:
+        left, right = wire_rand_comb(left_key, m, n)
+    else:
+        left, right = wire_rand_unique(left_key, m, n)
     param = rand_gate(gate_key, n)
     wires = (left, right)
     return param, wires
@@ -181,7 +181,7 @@ def conway_sample_batch(key, size):
 def conway_sample_all():
     return jnp.array([[float(b) for b in bin(i)[2:].zfill(9)] for i in range(512)])
 
-def train_adamw(key, params, wires, epochs=5001, batch_size=512):
+def train_adamw(key, params, wires, epochs=3001, batch_size=512):
     import time
     keys = random.split(key, epochs)
     opt = optax.chain(
@@ -325,8 +325,8 @@ def ext_copy_prop(instrs, root):
 
 def ext_alpha_count():
     # j and q, only letters not used in c keywords
-    # no d or f to avoid do or if
-    letters = "abceghijklmnopqrstuvwxyz"
+    # no d or i to avoid do, if, in
+    letters = "abcefghjklmnopqrstuvwxyz"
     for letter in letters:
         yield letter
     for letter in ext_alpha_count():
@@ -361,12 +361,13 @@ def ext_compile_to_c(params, wires):
         for instr in ext_logic(params, wires):
             fout.write(ext_format(instr))
         fout.write(after)
+    print("wrote circuit to gate.c")
 
 if __name__ == "__main__":
     key = random.PRNGKey(379009)
     param_key, train_key = random.split(key)
 
-    layer_sizes = [9, *([512] * 17), 64, 32, 16, 8, 4, 2, 1]
+    layer_sizes = [9, *([128] * 17), 64, 32, 16, 8, 4, 2, 1]
     params, wires = rand_network(param_key, layer_sizes)
 
     params_trained = train_adamw(train_key, params, wires)
