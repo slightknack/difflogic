@@ -29,7 +29,9 @@ I had a lot of fun. Reproduction steps and development journal below! Enjoy.
 - einops
 
 # to reproduce
-- With Nix installed on Linux and macOS, run `nix build github:slightknack/difflogic`
+
+> [!TIP]
+> With Nix installed on Linux or macOS, run `nix build github:slightknack/difflogic`
 
 - Clone this repo.
 - Create and source a `venv`.
