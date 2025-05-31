@@ -4,6 +4,20 @@
 
 typedef uint64_t cell;
 
+cell conway(cell in[9]) {
+    cell in_0 = in[0];
+    cell in_1 = in[1];
+    cell in_2 = in[2];
+    cell in_3 = in[3];
+    cell in_4 = in[4];
+    cell in_5 = in[5];
+    cell in_6 = in[6];
+    cell in_7 = in[7];
+    cell in_8 = in[8];
+    {{ logic }}
+    return out;
+}
+
 // human attempt, 54 gates
 cell conway_clayton(cell in[9]) {
     // pairs
@@ -33,20 +47,6 @@ cell conway_clayton(cell in[9]) {
     cell n3 = (h03 & h10) | (h13 & h00) | (h02 & h11 ) | (h12 & h01);
     // rule
     cell out = n3 | (in[4] & n2);
-    return out;
-}
-
-cell conway(cell in[9]) {
-    cell in_0 = in[0];
-    cell in_1 = in[1];
-    cell in_2 = in[2];
-    cell in_3 = in[3];
-    cell in_4 = in[4];
-    cell in_5 = in[5];
-    cell in_6 = in[6];
-    cell in_7 = in[7];
-    cell in_8 = in[8];
-    {{ logic }}
     return out;
 }
 
