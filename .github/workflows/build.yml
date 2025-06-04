@@ -19,6 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: cachix/install-nix-action@v31.3.0
-      - name: Build home-manager flake configuration
+      - name: Build project
         run: |
           nix build -L
